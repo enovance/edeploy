@@ -157,7 +157,7 @@ probe_pci_devices() {
     # Some kernel drivers doesn't have hardware dependencies but are required to make the device work
     # Let's probe them before starting the network stuff
     step "Probing Additional modules"
-    for module in mlx4_en; do
+    for module in mlx4_en ib_sa ib_cm ib_umad ib_addr ib_uverbs ib_ipoib ib_ipath mlx4_ib; do
         log_n "Loading additional module $module "
         modprobe $module && ( log "done"; echo $module >> /modules) || log "error"
     done
