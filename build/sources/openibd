@@ -1,0 +1,1480 @@
+#!/bin/bash
+### BEGIN INIT INFO
+# Provides:       openibd
+# Required-Start: $local_fs
+# Required-Stop: opensmd
+# Default-Start:  2 3 5
+# Default-Stop: 0 1 2 6
+# Description:    Activates/Deactivates InfiniBand Driver to
+#                 start at boot time.
+### END INIT INFO
+
+#
+# Copyright (c) 2006 Mellanox Technologies. All rights reserved.
+#
+# This Software is licensed under one of the following licenses:
+#
+# 1) under the terms of the "Common Public License 1.0" a copy of which is
+#    available from the Open Source Initiative, see
+#    http://www.opensource.org/licenses/cpl.php.
+#
+# 2) under the terms of the "The BSD License" a copy of which is
+#    available from the Open Source Initiative, see
+#    http://www.opensource.org/licenses/bsd-license.php.
+#
+# 3) under the terms of the "GNU General Public License (GPL) Version 2" a
+#    copy of which is available from the Open Source Initiative, see
+#    http://www.opensource.org/licenses/gpl-license.php.
+#
+# Licensee has the right to choose one of the above licenses.
+#
+# Redistributions of source code must retain the above copyright
+# notice and one of the license notices.
+#
+# Redistributions in binary form must reproduce both the above copyright
+# notice, one of the license notices in the documentation
+# and/or other materials provided with the distribution.
+#
+#
+#  $Id: openibd 9139 2006-08-29 14:03:38Z vlad $
+#
+
+# config: /etc/infiniband/openib.conf
+CONFIG="/etc/infiniband/openib.conf"
+
+if [ ! -f $CONFIG ]; then
+    echo No InfiniBand configuration found
+    exit 0
+fi
+
+. $CONFIG
+
+CWD=`pwd`
+cd /etc/infiniband
+WD=`pwd`
+
+PATH=$PATH:/sbin:/usr/bin
+if [ -e /etc/profile.d/ofed.sh ]; then
+        . /etc/profile.d/ofed.sh
+fi
+
+# Only use ONBOOT option if called by a runlevel directory.
+# Therefore determine the base, follow a runlevel link name ...
+base=${0##*/}
+link=${base#*[SK][0-9][0-9]}
+# ... and compare them
+if [ $link == $base ] ; then
+    RUNMODE=manual
+    ONBOOT=yes
+else
+    RUNMODE=auto
+fi
+
+# Allow unsupported modules, if disallowed by current configuration
+modprobe=/sbin/modprobe
+if ${modprobe} -c | grep -q '^allow_unsupported_modules  *0'; then
+    modprobe="${modprobe} --allow-unsupported-modules"
+fi
+
+ACTION=$1
+shift
+max_ports_num_in_hca=0
+
+# Check if OpenIB configured to start automatically
+if [ "X${ONBOOT}" != "Xyes" ]; then
+    exit 0
+fi
+
+if ( grep -i 'SuSE Linux' /etc/issue >/dev/null 2>&1 ); then
+    if [ -n "$INIT_VERSION" ] ; then
+        # MODE=onboot
+            if LANG=C egrep -L "^ONBOOT=['\"]?[Nn][Oo]['\"]?" ${CONFIG} > /dev/null ; then
+                    exit 0
+            fi
+    fi
+fi
+
+#########################################################################
+# Get a sane screen width
+[ -z "${COLUMNS:-}" ] && COLUMNS=80
+
+[ -z "${CONSOLETYPE:-}" ] && [ -x /sbin/consoletype ] && CONSOLETYPE="`/sbin/consoletype`"
+
+if [ -f /etc/sysconfig/i18n -a -z "${NOLOCALE:-}" ] ; then
+  . /etc/sysconfig/i18n
+  if [ "$CONSOLETYPE" != "pty" ]; then
+        case "${LANG:-}" in
+                ja_JP*|ko_KR*|zh_CN*|zh_TW*)
+                        export LC_MESSAGES=en_US
+                        ;;
+                *)
+                        export LANG
+                        ;;
+        esac
+  else
+        export LANG
+  fi
+fi
+
+# Read in our configuration
+if [ -z "${BOOTUP:-}" ]; then
+  if [ -f /etc/sysconfig/init ]; then
+      . /etc/sysconfig/init
+  else
+    # This all seem confusing? Look in /etc/sysconfig/init,
+    # or in /usr/doc/initscripts-*/sysconfig.txt
+    BOOTUP=color
+    RES_COL=60
+    MOVE_TO_COL="echo -en \\033[${RES_COL}G"
+    SETCOLOR_SUCCESS="echo -en \\033[1;32m"
+    SETCOLOR_FAILURE="echo -en \\033[1;31m"
+    SETCOLOR_WARNING="echo -en \\033[1;33m"
+    SETCOLOR_NORMAL="echo -en \\033[0;39m"
+    LOGLEVEL=1
+  fi
+  if [ "$CONSOLETYPE" = "serial" ]; then
+      BOOTUP=serial
+      MOVE_TO_COL=
+      SETCOLOR_SUCCESS=
+      SETCOLOR_FAILURE=
+      SETCOLOR_WARNING=
+      SETCOLOR_NORMAL=
+  fi
+fi
+
+if [ "${BOOTUP:-}" != "verbose" ]; then
+   INITLOG_ARGS="-q"
+else
+   INITLOG_ARGS=
+fi
+
+echo_success() {
+  echo -n $@
+  [ "$BOOTUP" = "color" ] && $MOVE_TO_COL
+  echo -n "[  "
+  [ "$BOOTUP" = "color" ] && $SETCOLOR_SUCCESS
+  echo -n $"OK"
+  [ "$BOOTUP" = "color" ] && $SETCOLOR_NORMAL
+  echo -n "  ]"
+  echo -e "\r"
+  return 0
+}
+
+echo_done() {
+  echo -n $@
+  [ "$BOOTUP" = "color" ] && $MOVE_TO_COL
+  echo -n "[  "
+  [ "$BOOTUP" = "color" ] && $SETCOLOR_NORMAL
+  echo -n $"done"
+  [ "$BOOTUP" = "color" ] && $SETCOLOR_NORMAL
+  echo -n "  ]"
+  echo -e "\r"
+  return 0
+}
+
+echo_failure() {
+  echo -n $@
+  [ "$BOOTUP" = "color" ] && $MOVE_TO_COL
+  echo -n "["
+  [ "$BOOTUP" = "color" ] && $SETCOLOR_FAILURE
+  echo -n $"FAILED"
+  [ "$BOOTUP" = "color" ] && $SETCOLOR_NORMAL
+  echo -n "]"
+  echo -e "\r"
+  return 1
+}
+
+echo_warning() {
+  echo -n $@
+  [ "$BOOTUP" = "color" ] && $MOVE_TO_COL
+  echo -n "["
+  [ "$BOOTUP" = "color" ] && $SETCOLOR_WARNING
+  echo -n $"WARNING"
+  [ "$BOOTUP" = "color" ] && $SETCOLOR_NORMAL
+  echo -n "]"
+  echo -e "\r"
+  return 1
+}
+
+count_ib_ports()
+{
+    local cnt=0
+    local ports_in_hca=0
+    sysdir=/sys/class/infiniband
+    hcas=$(/bin/ls -1 ${sysdir} 2> /dev/null)
+    for hca in $hcas
+    do
+        ports_in_hca=$(/bin/ls -1 ${sysdir}/${hca}/ports 2> /dev/null | wc -l)
+        if [ $ports_in_hca -gt $max_ports_num_in_hca ]; then
+                max_ports_num_in_hca=$ports_in_hca
+        fi
+        cnt=$[ $cnt + $ports_in_hca ]
+    done
+
+    return $cnt
+}
+
+# Setting Environment variables
+IS_FEDORA=0
+if [ -f /etc/redhat-release ]; then
+    DISTRIB="RedHat"
+    NETWORK_CONF_DIR="/etc/sysconfig/network-scripts"
+    # Check for Fedora, CentOS or Red Hat Enterprise Linux AS release 4 distribution
+    if ( grep -wE "Fedora|Nahant|CentOS" /etc/redhat-release > /dev/null ); then
+        IS_FEDORA=1
+    fi
+elif [ -f /etc/rocks-release ]; then
+    DISTRIB="Rocks"
+    NETWORK_CONF_DIR="/etc/sysconfig/network-scripts"
+elif [ -f /etc/SuSE-release ]; then
+    DISTRIB="SuSE"
+    NETWORK_CONF_DIR="/etc/sysconfig/network"
+elif [ -f /etc/debian_version ]; then
+    DISTRIB="Debian"
+else
+    DISTRIB=`ls /etc/*-release | head -n 1 | xargs -iXXX basename XXX -release 2> /dev/null`
+    if [ -d /etc/sysconfig/network-scripts ]; then
+        NETWORK_CONF_DIR="/etc/sysconfig/network-scripts"
+    elif [ -d /etc/sysconfig/network ]; then
+        NETWORK_CONF_DIR="/etc/sysconfig/network"
+    else
+        echo_failure "You system is not supported for IPoIB configuration"
+        echo "Try to load driver manually using configuration files from $WD directory"
+        exit 1
+    fi
+fi
+
+# Define kernel version prefix
+KPREFIX=`uname -r | cut -c -3 | tr -d '.' | tr -d '[:space:]'`
+
+# Setting OpenIB start parameters
+POST_LOAD_MODULES=""
+
+if [ "X${SDP_LOAD}" == "Xyes" ]; then
+    POST_LOAD_MODULES="$POST_LOAD_MODULES ib_sdp"
+    IPOIB_LOAD="yes"
+fi
+
+IPOIB=0
+IPOIB_MTU=${IPOIB_MTU:-65520}
+if [ "X${IPOIB_LOAD}" == "Xyes" ]; then
+    IPOIB=1
+fi
+
+if [ "X${SRP_LOAD}" == "Xyes" ]; then
+    POST_LOAD_MODULES="$POST_LOAD_MODULES ib_srp"
+fi
+
+if [ "X${SRPT_LOAD}" == "Xyes" ]; then
+    POST_LOAD_MODULES="$POST_LOAD_MODULES ib_srpt"
+fi
+
+if [ "X${QLGC_VNIC_LOAD}" == "Xyes" ]; then
+    POST_LOAD_MODULES="$POST_LOAD_MODULES qlgc_vnic"
+fi
+
+if [ "X${SRP_TARGET_LOAD}" == "Xyes" ]; then
+    POST_LOAD_MODULES="$POST_LOAD_MODULES ib_srp_target"
+fi
+
+if [ "X${RDMA_CM_LOAD}" == "Xyes" ]; then
+    POST_LOAD_MODULES="$POST_LOAD_MODULES rdma_cm"
+fi
+
+if [ "X${UCM_LOAD}" == "Xyes" ]; then
+    POST_LOAD_MODULES="$POST_LOAD_MODULES ib_ucm"
+fi
+
+if [ "X${RDS_LOAD}" == "Xyes" ]; then
+    POST_LOAD_MODULES="$POST_LOAD_MODULES rds rds_rdma rds_tcp"
+fi
+
+if [ "X${ISER_LOAD}" == "Xyes" ]; then
+    POST_LOAD_MODULES="$POST_LOAD_MODULES ib_iser"
+fi
+
+if [ "X${RDMA_UCM_LOAD}" == "Xyes" ]; then
+    POST_LOAD_MODULES="$POST_LOAD_MODULES rdma_ucm"
+fi
+
+GEN1_UNLOAD_MODULES="ib_srp_target scsi_target ib_srp kdapltest_module ib_kdapl ib_sdp ib_useraccess ib_useraccess_cm ib_cm ib_dapl_srv ib_ip2pr ib_ipoib ib_tavor mod_thh mod_rhh ib_dm_client ib_sa_client ib_client_query ib_poll ib_mad ib_core ib_services"
+
+UNLOAD_MODULES="ib_mthca mlx4_ib ib_ipath ipath_core ib_ehca iw_nes iw_cxgb3 cxgb3"
+UNLOAD_MODULES="$UNLOAD_MODULES ib_qib"
+UNLOAD_MODULES="$UNLOAD_MODULES ib_ipoib ib_madeye ib_rds"
+UNLOAD_MODULES="$UNLOAD_MODULES rds_rdma rds_tcp rds ib_ucm kdapl ib_srp_target scsi_target ib_srpt ib_srp ib_iser ib_sdp"
+UNLOAD_MODULES="$UNLOAD_MODULES rdma_ucm rdma_cm ib_addr ib_cm ib_local_sa findex"
+UNLOAD_MODULES="$UNLOAD_MODULES ib_sa ib_uverbs ib_umad ib_mad ib_core"
+
+STATUS_MODULES="rdma_ucm ib_rds rds rds_rdma rds_tcp ib_srpt ib_srp qlgc_vnic ib_sdp rdma_cm ib_addr ib_local_sa findex ib_ipoib ib_ehca ib_ipath ipath_core mlx4_core mlx4_ib mlx4_en ib_mthca ib_uverbs ib_umad ib_ucm ib_sa ib_cm ib_mad ib_core iw_cxgb3 iw_nes"
+STATUS_MODULES="$STATUS_MODULES ib_qib"
+
+ipoib_ha_pidfile=/var/run/ipoib_ha.pid
+srp_daemon_pidfile=/var/run/srp_daemon.pid
+
+get_interfaces()
+{
+    count_ib_ports
+    ports_num=$?
+
+    interfaces=""
+    for (( i=0 ; i < $ports_num ; i++ ))
+    do
+        interfaces="$interfaces ib${i}"
+    done
+}
+
+get_mlx4_en_interfaces()
+{
+    mlx4_en_interfaces=""
+    for ethpath in /sys/class/net/eth*
+    do
+        if (grep 0x15b3 ${ethpath}/device/vendor > /dev/null 2>&1); then
+            mlx4_en_interfaces="$mlx4_en_interfaces ${ethpath##*/}"
+        fi
+    done
+}
+
+# If module $1 is loaded return - 0 else - 1
+is_module()
+{
+local RC
+
+    /sbin/lsmod | grep -w "$1" > /dev/null 2>&1
+    RC=$?
+
+return $RC
+}
+
+# Return module's refcnt
+is_ref()
+{
+    local refcnt
+    refcnt=`cat /sys/module/"$1"/refcnt 2> /dev/nill`
+    return $refcnt
+}
+
+get_sw_fw_info()
+{
+    INFO=/etc/infiniband/info
+    OFEDHOME="/usr/local"
+    if [ -x ${INFO} ]; then
+        OFEDHOME=$(${INFO} | grep -w prefix | cut -d '=' -f 2)
+    fi
+    MREAD=$(which mstmread 2> /dev/null)
+
+    # Get OFED Build id
+    if [ -r ${OFEDHOME}/BUILD_ID ]; then
+        echo  "Software"
+        echo  "-------------------------------------"
+        printf "Build ID:\n"
+        cat ${OFEDHOME}/BUILD_ID
+        echo  "-------------------------------------"
+    fi
+
+    # Get FW version
+    if [ ! -x ${MREAD} ]; then
+        return 1
+    fi
+
+    vendor="15b3"
+    slots=$(lspci -n -d "${vendor}:" 2> /dev/null | grep -v "5a46" | cut -d ' ' -f 1)
+    for mst_device in $slots
+    do
+        major=$($MREAD ${mst_device} 0x82478 2> /dev/null | cut -d ':' -f 2)
+        subminor__minor=$($MREAD ${mst_device} 0x8247c 2> /dev/null | cut -d ':' -f 2)
+        ftime=$($MREAD ${mst_device} 0x82480 2> /dev/null | cut -d ':' -f 2)
+        fdate=$($MREAD ${mst_device} 0x82484 2> /dev/null | cut -d ':' -f 2)
+
+        major=$(echo -n $major | cut -d x -f 2 | cut -b 4)
+        subminor__minor1=$(echo -n $subminor__minor | cut -d x -f 2 | cut -b 3,4)
+        subminor__minor2=$(echo -n $subminor__minor | cut -d x -f 2 | cut -b 5,6,7,8)
+        echo
+        echo "Device ${mst_device} Info:"
+        echo "Firmware:"
+
+        printf "\tVersion:"
+        printf "\t$major.$subminor__minor1.$subminor__minor2\n"
+
+        day=$(echo -n $fdate | cut -d x -f 2 | cut -b 7,8)
+        month=$(echo -n $fdate | cut -d x -f 2 | cut -b 5,6)
+        year=$(echo -n $fdate | cut -d x -f 2 | cut -b 1,2,3,4)
+        hour=$(echo -n $ftime | cut -d x -f 2 | cut -b 5,6)
+        min=$(echo -n $ftime | cut -d x -f 2 | cut -b 3,4)
+        sec=$(echo -n $ftime | cut -d x -f 2 | cut -b 1,2)
+
+        printf "\tDate:"
+        printf "\t$day/$month/$year $hour:$min:$sec\n"
+    done
+}
+
+# Create debug info
+get_debug_info()
+{
+    trap '' 2 9 15
+    DEBUG_INFO=/tmp/ib_debug_info.log
+    /bin/rm -f $DEBUG_INFO
+    touch $DEBUG_INFO
+    echo "Hostname: `hostname -s`" >> $DEBUG_INFO
+    test -e /etc/issue && echo "OS: `cat /etc/issue`" >> $DEBUG_INFO
+    echo "Current kernel: `uname -r`" >> $DEBUG_INFO
+    echo "Architecture: `uname -m`" >> $DEBUG_INFO
+    which gcc &>/dev/null && echo "GCC version: `gcc --version`"  >> $DEBUG_INFO
+    echo "CPU: `cat /proc/cpuinfo | /bin/grep -E \"model name|arch\" | head -1`" >> $DEBUG_INFO
+    echo "`cat /proc/meminfo | /bin/grep \"MemTotal\"`" >> $DEBUG_INFO
+    echo "Chipset: `/sbin/lspci 2> /dev/null | head -1 | cut -d ':' -f 2-`" >> $DEBUG_INFO
+
+    echo >> $DEBUG_INFO
+    get_sw_fw_info >> $DEBUG_INFO
+    echo >> $DEBUG_INFO
+
+    echo >> $DEBUG_INFO
+    echo "############# LSPCI ##############" >> $DEBUG_INFO
+    /sbin/lspci 2> /dev/null >> $DEBUG_INFO
+
+    echo >> $DEBUG_INFO
+    echo "############# LSPCI -N ##############" >> $DEBUG_INFO
+    /sbin/lspci -n 2> /dev/null >> $DEBUG_INFO
+
+    echo >> $DEBUG_INFO
+    echo "############# LSMOD ##############" >> $DEBUG_INFO
+    /sbin/lsmod >> $DEBUG_INFO
+
+    echo >> $DEBUG_INFO
+    echo "############# DMESG ##############" >> $DEBUG_INFO
+    /bin/dmesg >> $DEBUG_INFO
+
+    if [ -r /var/log/messages ]; then
+        echo >> $DEBUG_INFO
+        echo "############# Messages ##############" >> $DEBUG_INFO
+        tail -50 /var/log/messages >> $DEBUG_INFO
+    fi
+
+    echo >> $DEBUG_INFO
+    echo "############# Running Processes ##############" >> $DEBUG_INFO
+    /bin/ps -ef >> $DEBUG_INFO
+    echo "##############################################" >> $DEBUG_INFO
+
+    echo
+    echo "Please open an issue in the https://bugs.openfabrics.org and attach $DEBUG_INFO"
+    echo
+}
+
+errata_58()
+{
+# Check AMD chipset issue Errata #58
+if test -x /sbin/lspci && test -x /sbin/setpci; then
+     if ( /sbin/lspci -nd 1022:1100 2> /dev/null | grep "1100" > /dev/null ) &&
+        ( /sbin/lspci -nd 1022:7450 2> /dev/null | grep "7450" > /dev/null ) &&
+        ( /sbin/lspci -nd 15b3:5a46 2> /dev/null | grep "5a46" > /dev/null ); then
+
+        if ! ( grep FIX_AMD_8131_ERR58 $CONFIG > /dev/null ); then
+            echo >> $CONFIG
+            echo "# Set FIX_AMD_8131_ERR58=YES to apply AMD-8131 Errata #58 workaround" >> $CONFIG
+            echo "FIX_AMD_8131_ERR58=\"YES\"" >> $CONFIG
+        fi
+
+        # Set default value for FIX_AMD_8131_ERR58
+        if [ -z "$FIX_AMD_8131_ERR58" ]; then
+                FIX_AMD_8131_ERR58="YES"
+        fi
+
+        CURVAL=`/sbin/setpci -d 1022:1100 69`
+
+        for val in $CURVAL
+        do
+            if [ "${val}" != "c0" ]; then
+                if [ "$FIX_AMD_8131_ERR58" == "YES" ]; then
+                    /sbin/setpci -d 1022:1100 69=c0
+                    if [ $? -eq 0 ]; then
+                        # echo "AMD-8131 Errata #58 workaround applied"
+                        break
+                    else
+                        echo "Failed to apply AMD-8131 Errata #58 workaround"
+                    fi
+                else
+                    echo
+                    echo "Invalid configuration found for PCI-X chipset AMD-8131 (Errata #58)"
+                    echo
+                    if [ "$RUNMODE" == "manual" ]; then
+                        read -p "Do you wish to continue anyway? [y/N]:"
+                        if [[ "$REPLY" != "y" && "$REPLY" != "yes" ]]; then
+                            exit 1
+                        fi
+                        break
+                    else
+                        exit 1
+                    fi
+                fi
+            fi
+        done
+
+    fi
+fi
+
+}
+
+errata_56()
+{
+# Check AMD chipset issue Errata #56
+if test -x /sbin/lspci && test -x /sbin/setpci; then
+     if ( /sbin/lspci -nd 1022:1100 2> /dev/null | grep "1100" > /dev/null ) &&
+        ( /sbin/lspci -nd 1022:7450 2> /dev/null | grep "7450" > /dev/null ) &&
+        ( /sbin/lspci -nd 15b3:5a46 2> /dev/null | grep "5a46" > /dev/null ); then
+
+        if ! ( grep FIX_AMD_8131_ERR56 $CONFIG > /dev/null ); then
+            echo >> $CONFIG
+            echo "# Set FIX_AMD_8131_ERR56=YES to apply AMD-8131 Errata #56 workaround" >> $CONFIG
+            echo "FIX_AMD_8131_ERR56=\"YES\"" >> $CONFIG
+        fi
+
+        # Set default value for FIX_AMD_8131_ERR56
+        if [ -z "$FIX_AMD_8131_ERR56" ]; then
+                FIX_AMD_8131_ERR56="YES"
+        fi
+
+        bus=""
+
+        # Look for devices AMD-8131
+        for amd_dev in `/sbin/setpci -v -f -d 1022:7450 19 | cut -d':' -f1,2`
+        do
+
+                bus=`/sbin/setpci -s $amd_dev 19`
+                rev=`/sbin/setpci -s $amd_dev 8`
+
+
+                # Look for Tavor attach to secondary bus of this devices
+                for device in `/sbin/setpci -f -s $bus: -d 15b3:5a46 19`
+                do
+                        if [ $rev -lt 13 ]; then
+                                if [ "$FIX_AMD_8131_ERR56" == "YES" ]; then
+                                        /sbin/setpci -d 15b3:5a44 72=14
+                                        if [ $? -eq 0 ]; then
+                                                # echo "AMD-8131 Errata #56 workaround applied"
+                                                break
+                                        else
+                                                echo "Failed to apply AMD-8131 Errata #56 workaround"
+                                        fi
+                                else
+                                        echo
+                                        echo "Invalid configuration found for PCI-X chipset AMD-8131 (Errata #56)"
+                                        echo
+
+                                        if [ "$RUNMODE" == "manual" ]; then
+                                                read -p "Do you wish to continue anyway? [y/N]:"
+                                                if [[ "$REPLY" != "y" && "$REPLY" != "yes" ]]; then
+                                                    exit 1
+                                                fi
+                                                break
+                                        else
+                                                exit 1
+                                        fi
+                                fi
+
+                        else
+                                continue
+                        fi
+
+                        # If more than one device is on the bus the issue a
+                        # warning
+                        num=`/sbin/setpci -f -s $bus: 0 | wc -l |  sed 's/\ *//g'`
+
+                        if [ $num -gt 1 ]; then
+                                echo "Warning: your current PCI-X configuration might be incorrect."
+                                echo "see AMD-8131 Errata 56 for more details."
+                        fi
+
+                done
+        done
+
+     fi
+fi
+}
+
+need_location_code_fix()
+{
+	local sub ARCH KVERSION
+	ARCH=$(uname -m)
+	KVERSION=$(uname -r)
+
+	if [ "$ARCH" != "ppc64" ]; then
+		return 1;
+	fi
+
+	case $KVERSION in
+	2.6.9-*.EL*)
+		sub=$(echo $KVERSION | cut -d"-" -f2 | cut -d"." -f1)
+		if [ $sub -lt 62 ]; then
+			return 2;
+		fi
+	;;
+	2.6.16.*-*-*)
+		sub=$(echo $KVERSION | cut -d"." -f4 | cut -d"-" -f1)
+		if [ $sub -lt 53 ]; then
+			return 0;
+		fi
+	;;
+	2.6.18-*.el5*)
+		sub=$(echo $KVERSION | cut -d"-" -f2 | cut -d"." -f1)
+		if [ $sub -lt 54 ]; then
+			return 0;
+		fi
+	;;
+	2.6.*)
+		sub=$(echo $KVERSION | cut -d"." -f3 | cut -d"-" -f1 | tr -d [:alpha:][:punct:])
+		if [ $sub -lt 24 ]; then
+			return 0;
+		fi
+	;;
+	esac
+
+	return 1;
+}
+
+fix_location_codes()
+{
+	# ppc64 only:
+	# Fix duplicate location codes on kernels where ibmebus can't handle them
+
+	need_location_code_fix
+	ret=$?
+	if  [ $ret = 1 ]; then return 0; fi
+	if ! [ -d /proc/device-tree -a -f /proc/ppc64/ofdt ]; then return 0; fi
+
+	local i=1 phandle lcode len
+	# output all duplicate location codes and their devices
+	for attr in $(find /proc/device-tree -name "ibm,loc-code" | grep "lh.a"); do
+		echo -e $(dirname $attr)"\t"$(cat $attr)
+	done | sort -k2 | uniq -f1 --all-repeated=separate | cut -f1 | while read dev; do
+		if [ -n "$dev" ]; then
+			# append an instance counter to the location code
+			phandle=$(hexdump -e '8 "%u"' $dev/ibm,phandle)
+			lcode=$(cat $dev/ibm,loc-code)-I$i
+			len=$(echo -n "$lcode" | wc -c)
+			node=${dev#/proc/device-tree}
+
+			# kernel-2.6.9 don't provide "update_property"
+			if [ ! -z "$(echo -n "$node" | grep "lhca")" ]; then
+				if [ $ret = 2 ]; then
+					echo -n "add_node $node" > /tmp/addnode
+					cd $dev
+                        		for a in *; do
+						SIZE=$(stat -c%s $a)
+                                		if [ "$a" = "ibm,loc-code" ] ; then
+                                     			echo -n " $a $len $lcode" >> /tmp/addnode
+                                		elif [ "$a" = "interrupts" ] ; then
+                                     			echo -n " $a 0 " >> /tmp/addnode
+                              			else
+                                     			echo -n " $a $SIZE " >> /tmp/addnode
+                                    			cat $a >> /tmp/addnode
+                           			fi
+                        		done
+					echo -n "remove_node $node" > /proc/ppc64/ofdt
+					cat /tmp/addnode > /proc/ppc64/ofdt
+					rm -rf /tmp/addnode
+				else
+					echo -n "update_property $phandle ibm,loc-code $len $lcode" > /proc/ppc64/ofdt
+				fi
+			i=$(($i + 1))
+			fi
+		else
+			# empty line means new group -- reset i
+			i=1
+		fi
+	done
+}
+
+rotate_log()
+{
+        local log=$1
+        if [ -s ${log} ]; then
+                cat ${log} >> ${log}.$(date +%Y-%m-%d)
+                /bin/rm -f ${log}
+        fi
+        touch ${log}
+}
+
+# Check whether IPoIB interface configured to be started upon boot.
+is_onboot()
+{
+        local i=$1
+        shift
+
+        case $DISTRIB in
+            RedHat|Rocks)
+                if LANG=C egrep -L "^ONBOOT=['\"]?[Nn][Oo]['\"]?" ${NETWORK_CONF_DIR}/ifcfg-$i > /dev/null ; then
+                    return 1
+                fi
+            ;;
+            SuSE)
+                if ! LANG=C egrep -L "^STARTMODE=['\"]?onboot['\"]?" ${NETWORK_CONF_DIR}/ifcfg-$i > /dev/null ; then
+                    return 1
+                fi
+            ;;
+            Debian)
+                if ! ( LANG=C grep auto /etc/network/interfaces | grep -w $i > /dev/null 2>&1) ; then
+                    return 1
+                fi
+            ;;
+            *)
+                if LANG=C egrep -L "^ONBOOT=['\"]?[Nn][Oo]['\"]?" ${NETWORK_CONF_DIR}/ifcfg-$i > /dev/null ; then
+                    return 1
+                fi
+            ;;
+        esac
+
+        return 0
+}
+
+set_ipoib_cm()
+{
+        local i=$1
+        shift
+
+        if [ ! -e /sys/class/net/${i}/mode ]; then
+                echo "Failed to configure IPoIB connected mode for ${i}"
+                return 1
+        fi
+
+        echo connected > /sys/class/net/${i}/mode
+        /sbin/ifconfig ${i} mtu ${IPOIB_MTU}
+}
+
+bring_up()
+{
+        local i=$1
+        shift
+
+        case $DISTRIB in
+                RedHat|Rocks)
+                    if [ $IS_FEDORA -eq 0 ]; then
+                            /sbin/ifup ${i}
+                    else
+                            . ${NETWORK_CONF_DIR}/ifcfg-${i}
+                if [ ! -z ${IPADDR} ] && [ ! -z ${NETMASK} ] && [ ! -z ${BROADCAST} ]; then
+                    /sbin/ifconfig ${i} ${IPADDR} netmask ${NETMASK} broadcast ${BROADCAST} > /dev/null 2>&1
+                else
+                            /sbin/ifup ${i}
+                fi
+                    fi
+                ;;
+                SuSE)
+                    if [ "$KPREFIX" == "26" ]; then
+                        ifconfig ${i} up > /dev/null 2>&1
+                    fi
+                            # Workaround for ifup issue: two devices with the same IP address
+                        . ${NETWORK_CONF_DIR}/ifcfg-${i}
+                if [ ! -z ${IPADDR} ] && [ ! -z ${NETMASK} ] && [ ! -z ${BROADCAST} ]; then
+                    /sbin/ifconfig ${i} ${IPADDR} netmask ${NETMASK} broadcast ${BROADCAST} > /dev/null 2>&1
+                else
+                            /sbin/ifup ${i}
+                fi
+                    # /sbin/ifup ${i} > /dev/null 2>&1
+                ;;
+                *)
+                    /sbin/ifup ${i}
+                ;;
+        esac
+
+        if [ "X${SET_IPOIB_CM}" == "Xyes" ]; then
+                set_ipoib_cm ${i}
+        fi
+
+        return $?
+}
+
+start()
+{
+    local RC=0
+
+    # Stop Gen1 modules if they are UP after uninstall
+    if is_module ib_tavor; then
+        echo
+        echo "Found Infiniband Gen1 modules."
+        echo "Trying to unload them first..."
+        echo
+        stop_gen1
+    fi
+
+    if [ $DISTRIB = "SuSE" ]; then
+        if [ -x /sbin/rpc.statd ]; then
+            /sbin/rpc.statd
+        fi
+    fi
+
+    errata_58
+
+    # Load Mellanox HCA driver
+    if [ "X${MTHCA_LOAD}" == "Xyes" ]; then
+        ${modprobe} ib_mthca > /dev/null 2>&1
+        my_rc=$?
+        if [ $my_rc -ne 0 ]; then
+                echo_failure $"Loading Mellanox HCA driver: "
+        fi
+        RC=$[ $RC + $my_rc ]
+    fi
+
+    if [ "X${MLX4_LOAD}" == "Xyes" ]; then
+        ${modprobe} mlx4_core > /dev/null 2>&1
+        my_rc=$?
+        if [ $my_rc -ne 0 ]; then
+                echo_failure $"Loading Mellanox MLX4 HCA driver: "
+        else
+                # Set port configuration
+                if [ -f /etc/infiniband/connectx.conf ]; then
+                         . /etc/infiniband/connectx.conf > /dev/null 2>&1
+                fi
+        fi
+        ${modprobe} mlx4_ib > /dev/null 2>&1
+        my_rc=$?
+        if [ $my_rc -ne 0 ]; then
+                echo_failure $"Loading Mellanox MLX4_IB HCA driver: "
+        fi
+        RC=$[ $RC + $my_rc ]
+    fi
+
+    if [ "X${MLX4_EN_LOAD}" == "Xyes" ]; then
+        if ! is_module mlx4_core; then
+                ${modprobe} mlx4_core > /dev/null 2>&1
+        fi
+
+        ${modprobe} mlx4_en > /dev/null 2>&1
+        my_rc=$?
+        if [ $my_rc -ne 0 ]; then
+                echo_failure $"Loading Mellanox MLX4_EN HCA driver: "
+        fi
+        RC=$[ $RC + $my_rc ]
+    fi
+
+    # Load QLogic QIB driver
+    if [ "X${QIB_LOAD}" == "Xyes" ]; then
+        ${modprobe} ib_qib > /dev/null 2>&1
+        my_rc=$?
+        if [ $my_rc -ne 0 ]; then
+                echo_failure $"Loading QLogic QIB driver: "
+        fi
+        RC=$[ $RC + $my_rc ]
+    fi
+
+    # Load QLogic InfiniPath driver
+    if [ "X${IPATH_LOAD}" == "Xyes" ]; then
+        ${modprobe} ib_ipath > /dev/null 2>&1
+        my_rc=$?
+        if [ $my_rc -ne 0 ]; then
+                echo_failure $"Loading QLogic InfiniPath driver: "
+        fi
+        # Don't exit on error
+        # Workarround for Bug 252.
+        # RC=$[ $RC + $my_rc ]
+    fi
+
+    # Load eHCA driver
+    if [ "X${EHCA_LOAD}" == "Xyes" ]; then
+        fix_location_codes
+        ${modprobe} ib_ehca > /dev/null 2>&1
+        my_rc=$?
+        if [ $my_rc -ne 0 ]; then
+                echo_failure $"Loading eHCA driver: "
+        fi
+        RC=$[ $RC + $my_rc ]
+    fi
+
+    # Load iw_cxgb3 driver
+    if [ "X${CXGB3_LOAD}" == "Xyes" ]; then
+        fix_location_codes
+        ${modprobe} iw_cxgb3 > /dev/null 2>&1
+        my_rc=$?
+        if [ $my_rc -ne 0 ]; then
+                echo_failure $"Loading cxgb3 driver: "
+        fi
+        RC=$[ $RC + $my_rc ]
+    fi
+
+    # Load iw_nes driver
+    if [ "X${NES_LOAD}" == "Xyes" ]; then
+        fix_location_codes
+        ${modprobe} iw_nes > /dev/null 2>&1
+        my_rc=$?
+        if [ $my_rc -ne 0 ]; then
+                echo_failure $"Loading nes driver: "
+        fi
+        RC=$[ $RC + $my_rc ]
+    fi
+
+cat << EOF >> /tmp/ib_set_node_desc.sh
+#!/bin/bash
+### BEGIN INIT INFO
+# Provides:       openibd
+# Required-Start: $local_fs
+# Required-Stop: opensmd
+# Default-Start:  2 3 5
+# Default-Stop: 0 1 2 6
+# Description:    Activates/Deactivates InfiniBand Driver to #                 start at boot time.
+### END INIT INFO
+
+# Wait while node's hostname is set
+sleep 10
+# Add node description to sysfs
+IBSYSDIR="/sys/class/infiniband"
+if [ -d \${IBSYSDIR} ]; then
+    declare -i hca_id=1
+    for hca in \${IBSYSDIR}/*
+    do
+        if [ -e \${hca}/node_desc ]; then
+            logger -i "Set node_desc for \$(basename \$hca): \$(hostname -s) HCA-\${hca_id}"
+            echo -n "\$(hostname -s) HCA-\${hca_id}" >> \${hca}/node_desc
+        fi
+        let hca_id++
+    done
+fi
+/bin/rm -f \$0
+EOF
+
+    chmod 755 /tmp/ib_set_node_desc.sh
+    /tmp/ib_set_node_desc.sh > /dev/null 2>&1 &
+
+    ${modprobe} ib_umad > /dev/null 2>&1
+    RC=$[ $RC + $? ]
+    ${modprobe} ib_uverbs > /dev/null 2>&1
+    RC=$[ $RC + $? ]
+
+    if [ $IPOIB -eq 1 ]; then
+        ${modprobe} ib_ipoib > /dev/null 2>&1
+        RC=$[ $RC + $? ]
+    fi
+
+    if [ $RC -eq 0 ]; then
+        echo_success $"Loading HCA driver and Access Layer: "
+    else
+        echo_failure $"Loading HCA driver and Access Layer: "
+        get_debug_info
+        exit 1
+    fi
+
+    # Enable IPoIB Interface if configured
+    if [ $IPOIB -eq 1 ]; then
+        get_interfaces
+        echo Setting up InfiniBand network interfaces:
+        for i in $interfaces
+        do
+                if [[ ! -e ${WD}/ifcfg-${i} && ! -e ${NETWORK_CONF_DIR}/ifcfg-${i} ]]; then
+                        echo "No configuration found for ${i}"
+                        if [ "X${SET_IPOIB_CM}" == "Xyes" ]; then
+                                set_ipoib_cm ${i}
+                        fi
+                else
+                        REMOVE_NETWORK_CONF=0
+                        if [ ! -e ${NETWORK_CONF_DIR}/ifcfg-${i} ]; then
+                                ln -snf ${WD}/ifcfg-${i} ${NETWORK_CONF_DIR}/ifcfg-${i}
+                                REMOVE_NETWORK_CONF=1
+                        fi
+
+                        if [ "$RUNMODE" != "manual" ]; then
+                                if ! is_onboot $i; then
+                                        continue
+                                fi
+                        fi
+
+                        bring_up $i
+                        RC=$?
+
+                        unset IPADDR NETMASK BROADCAST
+
+                        if [ $REMOVE_NETWORK_CONF -eq 1 ]; then
+                            rm -f ${NETWORK_CONF_DIR}/ifcfg-${i}
+                        fi
+
+                        if [ $RC -eq 0 ]; then
+                                echo_success $"Bringing up interface $i:"
+                        else
+                                echo_failure $"Bringing up interface $i:"
+                        fi
+                fi
+
+                # Bring up child interfaces if configured
+                for child_conf in $(/bin/ls -1 ${NETWORK_CONF_DIR}/ifcfg-${i}.???? 2> /dev/null)
+                do
+                        ch_i=${child_conf##*-}
+                        # Skip saved interfaces rpmsave and rpmnew
+                        if (echo $ch_i | grep rpm > /dev/null 2>&1); then
+                                continue
+                        fi
+                        if [ "$RUNMODE" != "manual" ]; then
+                                if ! is_onboot $ch_i; then
+                                        continue
+                                fi
+                        fi
+
+                        if [ ! -f /sys/class/net/${i}/create_child ]; then
+                                continue
+                        fi
+
+                        pkey=0x${ch_i##*.}
+			if [ ! -e /sys/class/net/${i}.${ch_i##*.} ] ; then
+				echo $pkey > /sys/class/net/${i}/create_child
+			fi
+                        bring_up $ch_i
+                        RC=$?
+
+                        unset IPADDR NETMASK BROADCAST
+                        if [ $RC -eq 0 ]; then
+                                echo_success $"Bringing up interface $ch_i:"
+                        else
+                                echo_failure $"Bringing up interface $ch_i:"
+                        fi
+                done
+        done
+        if [ "X${SET_IPOIB_CM}" == "Xyes" ]; then
+                if  [ -x /sbin/ib_ipoib_sysctl ]; then
+                    /sbin/ib_ipoib_sysctl load
+                fi
+        fi
+        echo_done "Setting up service network   .   .   ."
+
+    fi
+
+    # Load configured modules
+    if [ "$POST_LOAD_MODULES" != "" ]; then
+        for mod in  $POST_LOAD_MODULES
+        do
+                case $mod in
+                        ib_iser)
+                                # Voltaire requirement
+                                ${modprobe} --force-modversion $mod > /dev/null 2>&1
+                        ;;
+                        ib_srp)
+                                ${modprobe} $mod > /dev/null 2>&1
+                                if [ "X${SRPHA_ENABLE}" == "Xyes" ]; then
+                                    if [ ! -x /sbin/multipath ]; then
+                                        echo "/sbin/multipath is required to enable SRP HA."
+                                    else
+                                        # Create 91-srp.rules file
+                                        mkdir -p /etc/udev/rules.d
+                                        if [ "$DISTRIB" == "SuSE"  ]; then
+                                            cat > /etc/udev/rules.d/91-srp.rules << EOF
+ACTION=="add", KERNEL=="sd*[!0-9]", RUN+="/sbin/multipath %M:%m"
+EOF
+                                        fi
+                                        ${modprobe} dm_multipath > /dev/null 2>&1
+                                        srp_daemon.sh &
+                                        srp_daemon_pid=$!
+                                        echo ${srp_daemon_pid} > ${srp_daemon_pidfile}
+                                    fi
+                                elif [ "X${SRP_DAEMON_ENABLE}" == "Xyes" ]; then
+                                        srp_daemon.sh &
+                                        srp_daemon_pid=$!
+                                        echo ${srp_daemon_pid} > ${srp_daemon_pidfile}
+                                fi
+                        ;;
+                        *)
+                                ${modprobe} $mod > /dev/null 2>&1
+                        ;;
+                esac
+                RC=$?
+                [ $RC -ne 0 ] && echo_failure "Loading $mod"
+        done
+    fi
+
+    errata_56
+
+    # Create devices using udev
+    if [ -x /sbin/udevstart ]; then
+        UDEVSTART=/sbin/udevstart
+    elif [ -x /sbin/start_udev ]; then
+        UDEVSTART=/sbin/start_udev
+    else
+        UDEVSTART=
+    fi
+
+    if [ ! -z "${UDEVSTART}" ]; then
+        devstart_cnt=0
+        devstart_maxcnt=10
+        while [ ! -d /dev/infiniband/ ] && [ $devstart_cnt -lt $devstart_maxcnt ]; do
+            sleep 1
+            let devstart_cnt++
+        done
+
+        if [ ! -d /dev/infiniband/ ] && [ $devstart_cnt -eq $devstart_maxcnt ]; then
+            ${UDEVSTART} > /dev/null 2>&1
+        fi
+
+        if [ ! -d /dev/infiniband/ ]; then
+            echo_warning $"udevstart: No devices created under /dev/infiniband"
+        fi
+    fi
+
+   # Create qlgc_vnic interfaces. This needs to be done after udevstart
+    if [ "X${QLGC_VNIC_LOAD}" == "Xyes" ]; then
+        if [ -x /etc/init.d/qlgc_vnic ]; then
+		/etc/init.d/qlgc_vnic start
+        fi
+    fi
+
+    if [ X${RENICE_IB_MAD} == "Xyes" ]; then
+        # Set max_ports_num_in_hca variable
+        count_ib_ports
+        ports_num=$?
+        list_of_ibmads=""
+        for (( i=1 ; $i <= ${max_ports_num_in_hca} ; i++ ))
+        do
+                list_of_ibmads="${list_of_ibmads} ib_mad${i}"
+        done
+
+        ib_mad_pids=($(pidof ${list_of_ibmads} 2> /dev/null))
+        num_of_root_ibmad_procs=$(/bin/ps h -o user -p ${ib_mad_pids[*]} | grep -w root | wc -l)
+        get_pid_retries=0
+        while [ ${num_of_root_ibmad_procs} -lt $ports_num ]
+        do
+            # Wait maximum for 5 sec to get ib_mad process pid
+            if [ $get_pid_retries -gt 10 ]; then
+                    echo Failed to get $ports_num ib_mad PIDs to renice. Got ${num_of_root_ibmad_procs}.
+                    break
+            fi
+            usleep 500000
+            ib_mad_pids=($(pidof ${list_of_ibmads} 2> /dev/null))
+            num_of_root_ibmad_procs=$(/bin/ps h -o user -p ${ib_mad_pids[*]} | grep -w root | wc -l)
+            let get_pid_retries++
+        done
+        for ib_mad_pid in ${ib_mad_pids[*]}
+        do
+            if [ "$(/bin/ps -p ${ib_mad_pid} h -o user 2> /dev/null)" == "root" ]; then
+                    renice -19 ${ib_mad_pid} > /dev/null 2>&1
+            fi
+        done
+    fi
+
+    return $RC
+}
+
+rm_mod()
+{
+        local mod=$1
+        shift
+
+        unload_log=`/sbin/rmmod $mod 2>&1`
+        if [ $? -ne 0 ]; then
+            echo_failure $"Unloading $mod"
+            if [ ! -z "${unload_log}" ]; then
+                echo $unload_log
+            fi
+            # get_debug_info
+            [ ! -z $2 ] && echo $2
+            exit 1
+        fi
+}
+
+unload()
+{
+        # Unload module $1
+        local mod=$1
+        local unload_log
+
+        if is_module $mod; then
+		case $mod in
+			ib_ipath)
+				# infinipath depends on modprobe.conf remove rule
+				${modprobe} -v -r $mod > /dev/null 2>&1
+				sleep 2
+			;;
+			ib_mthca | mlx4_ib | ib_ehca | iw_cxgb3 | iw_nes)
+                                rm_mod $mod
+				sleep 2
+			;;
+			*)
+			# is_module ib_ipoib && ${modprobe} -r ib_ipoib > /dev/null 2>&1
+                	${modprobe} -r $mod > /dev/null 2>&1
+                	if [ $? -ne 0 ] || is_module $mod; then
+                	        # Try rmmod if modprobe failed: case that previous installation included more IB modules.
+                	        rm_mod $mod
+                	fi
+			;;
+		esac
+        fi
+}
+
+stop_gen1()
+{
+    if is_module ib_ipoib; then
+        # Unload IPoIB interfaces
+        get_interfaces
+        for i in $interfaces
+        do
+                if [[ ! -e ${WD}/ifcfg-${i} && ! -e ${NETWORK_CONF_DIR}/ifcfg-${i} ]]; then
+                        # echo "No configuration found for ${i}"
+                        continue
+                fi
+
+                REMOVE_NETWORK_CONF=0
+                if [ ! -e ${NETWORK_CONF_DIR}/ifcfg-${i} ]; then
+                        ln -snf ${WD}/ifcfg-${i} ${NETWORK_CONF_DIR}/ifcfg-${i}
+                        REMOVE_NETWORK_CONF=1
+                fi
+
+                ifdown ${i} > /dev/null 2>&1
+                RC=$(($RC+$?))
+                [ $RC -eq 0 ] && echo_success $"Shutting down interface $i: " || echo_failure $"Shutting down interface $i: "
+                if [ $REMOVE_NETWORK_CONF -eq 1 ]; then
+                        rm -f ${NETWORK_CONF_DIR}/ifcfg-${i}
+                fi
+        done
+
+        [ $RC -ne 0 ] && echo "Please reboot the host." &&  exit 1
+        sleep 2
+    fi
+
+
+    if [ "${GEN1_UNLOAD_MODULES}" != "" ]; then
+        for mod in  ${GEN1_UNLOAD_MODULES}
+        do
+            unload $mod "Please reboot the host."
+        done
+    fi
+}
+
+stop()
+{
+        # Check if applications which use infiniband are running
+        local apps="opensm osmtest ibbs ibns"
+        local pid
+
+        for app in $apps
+        do
+        if ( ps -ef | grep $app | grep -v grep > /dev/null 2>&1 ); then
+                echo
+                echo "Please stop $app and all applications running over InfiniBand"
+                echo "Then run \"$0 $ACTION\""
+                echo
+                exit 1
+            fi
+        done
+
+        # Check if open-iscsi is running and if there are open iSER sessions
+        if [ $(pidof iscsid | wc -w) -gt 0 ]; then
+                iser_session_cnt=$(iscsiadm -m session 2>&1 | grep -c "^iser")
+
+                if [ $iser_session_cnt -gt 0 ]; then
+                        echo
+                        # If it's RH4, open-iscsi must be stopped before openibd
+                        if [[ -f /etc/redhat-release && $(grep -c "Red Hat Enterprise Linux AS release 4" /etc/redhat-release) -eq 1 ]]; then
+                            echo "Please stop open-iscsi: /etc/init.d/iscsi stop"
+                        else
+                            echo "Please logout from all open-iscsi over iSER sessions"
+                        fi
+                        echo "Then run \"$0 $ACTION\""
+                        echo
+                        exit 1
+                fi
+        fi
+
+        # Stop Gen1 modules if they are UP after uninstall
+        if is_module ib_tavor; then
+                stop_gen1
+        fi
+
+        # Stop IPoIB HA daemon if running
+        if [ -f $ipoib_ha_pidfile ]; then
+                local line p
+                read line < $ipoib_ha_pidfile
+                for p in $line ; do
+                        [ -z "${p//[0-9]/}" -a -d "/proc/$p" ] && ipoib_ha_pids="$ipoib_ha_pids $p"
+                done
+                /bin/rm -f $ipoib_ha_pidfile
+        fi
+
+        if [ -n "${ipoib_ha_pids:-}" ]; then
+            kill -9 ${ipoib_ha_pids} > /dev/null 2>&1
+            mcastpid=$(pidof -x mcasthandle)
+            if [ -n "${mcastpid:-}" ]; then
+                kill -9 ${mcastpid} > /dev/null 2>&1
+            fi
+        fi
+
+        # Stop SRP HA daemon if running
+        if [ -f $srp_daemon_pidfile ]; then
+                local line p
+                read line < $srp_daemon_pidfile
+                for p in $line ; do
+                        [ -z "${p//[0-9]/}" -a -d "/proc/$p" ] && srp_daemon_pids="$srp_daemon_pids $p"
+                done
+                /bin/rm -f $srp_daemon_pidfile
+        fi
+
+        if [ -n "${srp_daemon_pids:-}" ]; then
+            kill -15 ${srp_daemon_pids} > /dev/null 2>&1
+        fi
+
+        if [ "X${SRPHA_ENABLE}" == "Xyes" ]; then
+                /bin/rm -f /etc/udev/rules.d/91-srp.rules > /dev/null 2>&1
+                mpath_pids=$(pidof -x multipath)
+                if [ -n "${mpath_pids:-}" ]; then
+                    kill -9 ${mpath_pids} > /dev/null 2>&1
+                fi
+
+                if is_module ib_srp; then
+                    for f in `/bin/ls /sys/class/scsi_host`
+                    do
+                            if [ -f /sys/class/scsi_host/$f/local_ib_port ]; then
+                                    for i in `/bin/ls -d /sys/class/scsi_host/$f/device/target*/*/block* | awk -F: '{print $NF}'`
+                                    do
+                                        mdev=`/sbin/scsi_id -g -s /block/$i 2> /dev/null`
+                                        if [ -n "${mdev}" ]; then
+                                            /sbin/multipath -f $mdev > /dev/null 2>&1
+                                        fi
+                                    done
+                            fi
+                    done
+                fi
+        fi
+
+		if [ -d /sys/class/infiniband_qlgc_vnic/ ]; then
+                    if [ -x /etc/init.d/qlgc_vnic ]; then
+			/etc/init.d/qlgc_vnic stop 2>&1 1>/dev/null
+                    fi
+		fi
+
+        # Unload modules
+        if [ "$UNLOAD_MODULES" != "" ]; then
+                for mod in  $UNLOAD_MODULES
+                do
+                        unload $mod
+                done
+        fi
+
+        # Unload mlx4_core
+        if is_module mlx4_core; then
+            is_ref mlx4_core
+            if [ $? -eq 0 ]; then
+                unload mlx4_core
+            elif is_module mlx4_en; then
+                # Unload mlx4_en if one or more of the following cases takes place:
+                # - No MLX4 eth devices present
+                # - mlx4_en module was not loaded by the openibd script
+                if (grep 0x15b3 /sys/class/net/eth*/device/vendor > /dev/null 2>&1) && [ "X$MLX4_EN_LOAD" != "Xyes" ]; then
+                    echo "MLX4_EN module is loaded and in use."
+                    echo "To unload MLX4_EN run: 'modprobe -r mlx4_en mlx4_core'"
+                else
+                    unload mlx4_en
+                    unload mlx4_core
+                fi
+            fi
+        fi
+
+        if  [ -x /sbin/ib_ipoib_sysctl ]; then
+            /sbin/ib_ipoib_sysctl unload
+        fi
+
+        /bin/rm -rf /dev/infiniband
+        echo_success $"Unloading HCA driver: "
+        sleep 1
+}
+
+status()
+{
+    local RC=0
+
+       if is_module ib_mthca || is_module mlx4_core || is_module ib_qib || is_module ib_ipath || is_module ib_ehca || is_module iw_cxgb3 || is_module iw_nes; then
+               echo
+               echo "  HCA driver loaded"
+               echo
+       else
+               echo
+               echo $"HCA driver is not loaded"
+               echo
+       fi
+
+    if is_module ib_ipoib; then
+       get_interfaces
+       if [ -n "$interfaces" ]; then
+           echo $"Configured IPoIB devices:"
+           echo $interfaces
+           echo
+           echo $"Currently active IPoIB devices:"
+
+           for i in $interfaces
+           do
+                if [[ ! -e ${WD}/ifcfg-${i} && ! -e ${NETWORK_CONF_DIR}/ifcfg-${i} ]]; then
+                    continue
+                fi
+                echo `/sbin/ip -o link show $i | awk -F ": " '/UP>/ { print $2 }'`
+                RC=$?
+           done
+       fi
+    fi
+
+    if is_module mlx4_en; then
+       get_mlx4_en_interfaces
+       if [ -n "$mlx4_en_interfaces" ]; then
+           echo $"Configured MLX4_EN devices:"
+           echo $mlx4_en_interfaces
+           echo
+           echo $"Currently active MLX4_EN devices:"
+
+           for i in $mlx4_en_interfaces
+           do
+                echo `/sbin/ip -o link show $i | awk -F ": " '/UP>/ { print $2 }'`
+           done
+       fi
+    fi
+
+    echo
+
+    local cnt=0
+
+    for mod in  $STATUS_MODULES
+    do
+        if is_module $mod; then
+                [ $cnt -eq 0 ] && echo "The following OFED modules are loaded:" && echo
+                let cnt++
+                echo "  $mod"
+        fi
+    done
+
+    echo
+
+    return $RC
+}
+
+
+RC=0
+start_time=$(date +%s | tr -d '[:space:]')
+
+trap_handler()
+{
+    let run_time=$(date +%s | tr -d '[:space:]')-${start_time}
+
+    # Ask to wait for 5 seconds if trying to stop openibd
+    if [ $run_time -gt 5 ] && [ "$ACTION" == "stop" ]; then
+        printf "\nProbably some application are still using InfiniBand modules...\n"
+    else
+        printf "\nPlease wait ...\n"
+    fi
+    return 0
+}
+
+trap 'trap_handler' 2 9 15
+
+case $ACTION in
+        start)
+                stop
+                start
+                ;;
+        stop)
+                stop
+                ;;
+        restart)
+                stop
+                start
+                ;;
+        status)
+                status
+                ;;
+        *)
+                echo
+                echo "Usage: `basename $0` {start|stop|restart|status}"
+                echo
+                exit 1
+                ;;
+esac
+
+RC=$?
+exit $RC
