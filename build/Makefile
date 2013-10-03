@@ -90,6 +90,10 @@ mysql $(INST)/mysql.done: mysql.install $(INST)/base.done
 	./mysql.install $(INST)/base $(INST)/mysql $(VERS)
 	touch $(INST)/mysql.done
 
+infiniband $(INST)/infiniband.done: infiniband.install $(INST)/base.done
+	./infiniband.install $(INST)/base $(INST)/infiniband $(VERS)
+	touch $(INST)/infiniband.done
+
 galera $(INST)/galera.done: galera.install $(INST)/base.done
 	./galera.install $(INST)/base $(INST)/galera $(VERS)
 	touch $(INST)/galera.done
