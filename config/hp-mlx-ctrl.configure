@@ -75,10 +75,10 @@ iface lo inet loopback
 # Ether interface
 auto %(eth-pub0)s
 iface %(eth-pub0)s inet static
-    hwaddress %(mac-pub0)s
-    address %(ip)s
-    netmask %(netmask)s
-    gateway %(gateway)s
+  hwaddress %(mac-pub0)s
+  address %(ip)s
+  netmask %(netmask)s
+  gateway %(gateway)s
 
 # Ib interface FDR
 auto %(eth-ib0)s
@@ -144,4 +144,4 @@ GRUB_SERIAL_COMMAND="serial --speed=9600 --unit=0 --word=8 --parity=no --stop=1"
 #GRUB_INIT_TUNE="480 440 1"
 ''')
 
-set_role('infiniband', 'D7-F.1.0.0', disk)
+set_role('base', 'D7-F.1.0.0', disk)
