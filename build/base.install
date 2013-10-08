@@ -193,6 +193,11 @@ if [ -z "$DEB" ]; then
     rm -rf "$dir/var/cache/yum"
 fi
 
+# Infinband packages
+if [ "$ENABLE_IB" = "true" ]; then
+  bash ${ORIG}/infinband ${dir}
+fi
+
 # let the key be generated on first boot
 rm -f "$dir"/etc/ssh/*key*
 

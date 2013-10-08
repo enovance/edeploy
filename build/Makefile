@@ -46,6 +46,10 @@ base $(INST)/base.done: base.install policy-rc.d edeploy
 	ARCH=$(ARCH) ./base.install $(INST)/base $(DIST) $(VERS)
 	touch $(INST)/base.done
 
+base-ib $(INST)/base.done: base.install policy-rc.d edeploy
+	ARCH=$(ARCH) ENABLE_IB=true ./base.install $(INST)/base $(DIST) $(VERS)
+	touch $(INST)/base.done
+
 ceph $(INST)/ceph.done: ceph.install $(INST)/base.done
 	./ceph.install $(INST)/base $(INST)/ceph $(VERS)
 	touch $(INST)/ceph.done
@@ -90,10 +94,6 @@ health-test: health-check
 
 img: $(INST)/$(IMG)
 	./img.install $(INST)/base $(IMG) $(VERS) $(INST) $(SERV) $(HSERV) $(DEBUG)
-
-infiniband $(INST)/infiniband.done: infiniband.install $(INST)/base.done
-	./infiniband.install $(INST)/base $(INST)/infiniband $(VERS)
-	touch $(INST)/infiniband.done
 
 mysql $(INST)/mysql.done: mysql.install $(INST)/base.done
 	./mysql.install $(INST)/base $(INST)/mysql $(VERS)
