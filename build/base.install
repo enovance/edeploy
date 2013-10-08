@@ -106,7 +106,7 @@ if [ -z "$DEB" ]; then
     cp ${dir}/etc/skel/.bash_profile ${dir}/root
 fi
 
-PACKAGES="pciutils rsyslog"
+PACKAGES="pciutils rsyslog infiniband-diags"
 
 case $dist in
     precise)
