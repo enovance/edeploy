@@ -194,8 +194,8 @@ if [ -z "$DEB" ]; then
 fi
 
 # Infinband packages
-if [ "$ENABLE_IB" = "true" ]; then
-  bash ${ORIG}/infinband ${dir}
+if [ $ENABLE_IB = "y" ]; then
+  bash ${ORIG}/infiniband ${dir}
 fi
 
 # let the key be generated on first boot

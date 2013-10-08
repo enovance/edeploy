@@ -43,11 +43,7 @@ META=$(TOP)/metadata/$(VERS)
 all: $(INST)/$(IMG) $(INST)/mysql.done
 
 base $(INST)/base.done: base.install policy-rc.d edeploy
-	ARCH=$(ARCH) ./base.install $(INST)/base $(DIST) $(VERS)
-	touch $(INST)/base.done
-
-base-ib $(INST)/base.done: base.install policy-rc.d edeploy
-	ARCH=$(ARCH) ENABLE_IB=true ./base.install $(INST)/base $(DIST) $(VERS)
+	ENABLE_IB=$(ENABLE_IB) ARCH=$(ARCH) ./base.install $(INST)/base $(DIST) $(VERS)
 	touch $(INST)/base.done
 
 ceph $(INST)/ceph.done: ceph.install $(INST)/base.done
