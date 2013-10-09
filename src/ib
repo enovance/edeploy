@@ -1,0 +1,55 @@
+root@graphene-101:~# ibstat
+CA 'mlx4_0'
+        CA type: MT26418
+        Number of ports: 2
+        Firmware version: 2.8.600
+        Hardware version: a0
+        Node GUID: 0x0002c903000b5cd8
+        System image GUID: 0x0002c903000b5cdb
+        Port 1:
+                State: Active
+                Physical state: LinkUp
+                Rate: 20
+                Base lid: 80
+                LMC: 0
+                SM lid: 119
+                Capability mask: 0x02510868
+                Port GUID: 0x0002c903000b5cd9
+        Port 2:
+                State: Down
+                Physical state: Polling
+                Rate: 10
+                Base lid: 0
+                LMC: 0
+                SM lid: 0
+                Capability mask: 0x02510868
+                Port GUID: 0x0002c903000b5cda
+
+
+root@(none):/# ibstat
+CA 'mlx4_0'
+        CA type: MT4099
+        Number of ports: 2
+        Firmware version: 2.11.500
+        Hardware version: 0
+        Node GUID: 0x0002c90300ea7180
+        System image GUID: 0x0002c90300ea7183
+        Port 1:
+                State: Down
+                Physical state: Disabled
+                Rate: 40
+                Base lid: 0
+                LMC: 0
+                SM lid: 0
+                Capability mask: 0x02514868
+                Port GUID: 0x0002c90300ea7181
+        Port 2:
+                State: Active
+                Physical state: LinkUp
+                Rate: 56
+                Base lid: 5
+                LMC: 0
+                SM lid: 1
+                Capability mask: 0x02514868
+                Port GUID: 0x0002c90300ea7182
+

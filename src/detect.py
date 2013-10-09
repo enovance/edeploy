@@ -27,7 +27,7 @@ import subprocess
 import diskinfo
 import hpacucli
 import os
-
+import re
 
 def size_in_gb(size):
     'Return the size in GB without the unit.'
@@ -119,6 +119,45 @@ def detect_ipmi(hw_lst):
         else:
             sys.stderr.write('Info: No IPMI device found\n')
             return False
+
+def detect_infiniband(hw_lst):
+  'Detect Infiniband devinces.'
+  status, _ = cmd('lspci -d 15b3: |grep -sq Mellanox')
+  if status == 0:
+    status, output = cmd('ibstat')
+    if status == 0:
+      for line in output.split('\n'):
+        card_drv = re.compile(r'CA: (.*)', re.M).search(line)
+        card_type = re.compile(r'type: (.*)', re.M).search(line)
+        nb_ports = re.compile(r'Number of ports: ([0-9])', re.M).search(line)
+        fw_ver = re.compile(r'Firmware version: (.*)', re.M).search(line)
+        hw_ver = re.compile(r'Hardware version: (.*)', re.M).search(line)
+
+        if card_drv:
+          hw_lst.append(('system', 'infinband', 'card_drv', card_drv))
+        if card_type:
+          hw_lst.append(('system', 'infinband', 'card_type', card_type))
+        if nb_ports:
+          hw_lst.append(('system', 'infinband', 'nb_ports', nb_ports))
+        if fw_ver:
+          hw_lst.append(('system', 'infinband', 'fw_ver', fw_ver))
+        if hw_ver:
+          hw_lst.append(('system', 'infinband', 'hw_ver', hw_ver))
+
+        for ports in range(1, nb_ports):
+          status, output = cmd('ibstat %s %d'%(card_drv,ports))
+          if status == 0:
+            for line in output.split('\n'):
+              port_state = re.compile(r'State: (.*)', re.M).search(line)
+              phy_state = re.compile(r'Physical state: (.*)', re.M).search(line)
+              port_rate = re.compile(r'Rate: (.*)', re.M).search(line)
+
+              if port_state:
+                hw_lst.append(('network', 'ib%d'%(ports), 'port_state',port_state))
+              if phy_state:
+                hw_lst.append(('network', 'ib%d'%(ports), 'phy_state',phy_state))
+              if port_rate:
+                hw_lst.append(('network', 'ib%d'%(ports), 'port_rate',port_rate))
 
 
 def detect_system(hw_lst, output=None):
