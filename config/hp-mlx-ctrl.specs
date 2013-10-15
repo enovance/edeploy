@@ -1,0 +1,22 @@
+# -*- python -*-
+
+[
+    ('disk', '$disk1', 'size', '300'),
+    ('disk', '$disk1', 'slot', '$slot1'),
+    ('disk', '$disk2', 'size', '300'),
+    ('disk', '$disk2', 'slot', '$slot2'),
+    ('disk', '$disk3', 'size', '300'),
+    ('disk', '$disk3', 'slot', '$slot3'),
+    ('disk', '$disk4', 'size', '300'),
+    ('disk', '$disk4', 'slot', '$slot4'),
+    ('cpu', 'logical', 'number', '$nbcpu'),
+    ('network', '$eth-pub0', 'ipv4', 'network(10.66.6.0/24)'),
+    ('network', '$eth-pub0', 'vendor', 'Broadcom Corporation'),
+    ('network', '$eth-pub0', 'link', 'yes'),
+    ('network', '$eth-pub0', 'serial', '$mac-pub0'),
+    ('network', '$eth-ib0', 'vendor', 'Mellanox Technologies'),
+    ('infiniband', '$card0-port2', 'state', 'Active'),
+    ('infiniband', '$card0-port2', 'rate', '56'),
+    ('network', '$eth-ib0', 'serial', '$mac-ib0'),
+    ('system', 'ipmi', 'channel', '$ipmi-channel'),
+]

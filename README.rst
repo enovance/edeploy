@@ -314,3 +314,24 @@ will be run if present before synchronizing the files to stop services
 and after the synchro for example to restart stopped services. The
 ``post`` script can report that a reboot is needed by exiting with a
 return code of 100.
+
+How to contribute
+-----------------
+
+- Pull requests please.
+- Bonus points for feature branches.
+
+Run tests
++++++++++
+
+On debian-based hosts, install ``python-pexpect``, ``python-mock`` and ``python-nose``
+packages and run ``make test``.
+
+Debug
++++++
+
+For ``specs`` debug
+
+- On eDeploy server ``multitail /var/log/apache2/{error,access}.log /var/log/syslog``
+- And on booted but unmatch profile vm ``curl -s -S -F file=@/hw.py http://<ip-edeploy-srv>:80/cgi-bin/upload.py``
+- Or see uploaded ``hw`` files eDeploy server

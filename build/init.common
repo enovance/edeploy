@@ -165,7 +165,13 @@ probe_pci_devices() {
     # Some kernel drivers doesn't have hardware dependencies but are required to make the device work
     # Let's probe them before starting the network stuff
     step "Probing Additional modules"
-    for module in mlx4_en; do
+    # Show all Mellanox cards (15b3 is hexa vendor ID)
+    if [[ $(lspci -d 15b3:) =~ .*Mellanox ]]; then
+      additional_modules='mlx4_en ib_sa ib_cm ib_umad ib_addr ib_uverbs ib_ipoib ib_ipath mlx4_ib'
+    else
+      additional_modules='mlx4_en'
+    fi
+    for module in $additional_modules; do
         log_n "Loading additional module $module "
         modprobe $module && ( log "done"; echo $module >> /modules) || log "error"
     done

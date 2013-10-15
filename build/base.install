@@ -114,7 +114,7 @@ if [ -z "$DEB" ]; then
     cp ${dir}/etc/skel/.bash_profile ${dir}/root
 fi
 
-PACKAGES="pciutils rsyslog"
+PACKAGES="pciutils rsyslog infiniband-diags"
 
 case $dist in
     precise)
@@ -199,6 +199,11 @@ fi
 
 if [ -z "$DEB" ]; then
     rm -rf "$dir/var/cache/yum"
+fi
+
+# Infinband packages
+if [ $ENABLE_IB = "y" ]; then
+  bash ${ORIG}/infiniband ${dir}
 fi
 
 # let the key be generated on first boot

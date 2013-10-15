@@ -1,0 +1,60 @@
+#!/bin/bash
+#
+# Copyright (C) 2013 eNovance SAS <licensing@enovance.com>
+#
+# Author: Sebastien Badia <sebastien.badia@enovance.com>
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+
+dir="$1"
+
+# Configure OpenIB things
+#
+if [ -f ${dir}/etc/debian_version ]; then
+  chroot ${dir} apt-get install -y infiniband-diags ibutils ibverbs-utils qlvnictools srptools sdpnetstat rds-tools rdmacm-utils perftest libmthca1 libmlx4-1 libipathverbs1
+
+  # Mellanox OpenIB configuration script for Debian based hosts
+  mkdir -p ${dir}/etc/infinband
+  cat > ${dir}/etc/infinband/openib.conf <<EOF
+# Start HCA driver upon boot
+ONBOOT=yes
+# Load UCM module
+UCM_LOAD=no
+# Load RDMA_CM module
+RDMA_CM_LOAD=yes
+# Load RDMA_UCM module
+RDMA_UCM_LOAD=yes
+# Increase ib_mad thread priority
+RENICE_IB_MAD=no
+# Load MTHCA
+# MTHCA_LOAD=yes
+# Load MLX4 modules
+MLX4_LOAD=yes
+# Load MLX4_EN module
+MLX4_EN_LOAD=yes
+# Load CXGB3 modules
+# CXGB3_LOAD=yes
+# Load NES modules
+# NES_LOAD=yes
+# Load IPoIB
+IPOIB_LOAD=yes
+# Enable IPoIB Connected Mode
+SET_IPOIB_CM=yes
+EOF
+
+  # Mellanox OpenIB init script
+  wget http://www.cbp.ens-lyon.fr/emmanuel.quemener/software/OFED/Squeeze153/config/openibd -O ${dir}/etc/init.d/openibd
+  chmod +x ${dir}/etc/init.d/openibd
+else
+  chroot ${dir} yum  --nogpgcheck install -y ibutils infiniband-diags ibacm libibcommon libibmad libibumad libibverbs libmlx4 libmthca rdma srptools openib
+fi
