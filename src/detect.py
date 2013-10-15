@@ -30,6 +30,7 @@ from netaddr import *
 
 import diskinfo
 import hpacucli
+import infiniband as ib
 import os
 
 
@@ -141,6 +142,37 @@ def get_CIDR(netmask):
     for octet in netmask:
         binary_str += bin(int(octet))[2:].zfill(8)
     return str(len(binary_str.rstrip('0')))
+
+
+def detect_infiniband(hw_lst):
+  'Detect Infiniband devinces.'
+  status, _ = cmd('lspci -d 15b3: |grep -sq Mellanox')
+  if status == 0:
+    ib_card = 0
+    for devices in range(ib_card, len(ib.ib_card_drv())):
+      card_type = ib.ib_card_drv()[devices]
+      ib_infos = ib.ib_global_info(card_type)
+      nb_ports = ib_infos['nb_ports']
+      hw_lst.append(('infiniband', 'card%i' % ib_card, 'card_type', card_type))
+      hw_lst.append(('infiniband', 'card%i' % ib_card, 'device_type', ib_infos['device_type']))
+      hw_lst.append(('infiniband', 'card%i' % ib_card, 'fw_version', ib_infos['fw_ver']))
+      hw_lst.append(('infiniband', 'card%i' % ib_card, 'hw_version', ib_infos['hw_ver']))
+      hw_lst.append(('infiniband', 'card%i' % ib_card, 'nb_ports', nb_ports))
+      hw_lst.append(('infiniband', 'card%i' % ib_card, 'sys_guid', ib_infos['sys_guid']))
+      hw_lst.append(('infiniband', 'card%i' % ib_card, 'node_guid', ib_infos['node_guid']))
+      for port in range(1, int(nb_ports)+1):
+        ib_port_infos = ib.ib_port_info(card_type,port)
+        hw_lst.append(('infiniband', 'card%i_port%i' % (ib_card,port), 'state', ib_port_infos['state']))
+        hw_lst.append(('infiniband', 'card%i_port%i' % (ib_card,port), 'physical_state', ib_port_infos['physical_state']))
+        hw_lst.append(('infiniband', 'card%i_port%i' % (ib_card,port), 'rate', ib_port_infos['rate']))
+        hw_lst.append(('infiniband', 'card%i_port%i' % (ib_card,port), 'base_lid', ib_port_infos['base_lid']))
+        hw_lst.append(('infiniband', 'card%i_port%i' % (ib_card,port), 'lmc', ib_port_infos['lmc']))
+        hw_lst.append(('infiniband', 'card%i_port%i' % (ib_card,port), 'sm_lid', ib_port_infos['sm_lid']))
+        hw_lst.append(('infiniband', 'card%i_port%i' % (ib_card,port), 'port_guid', ib_port_infos['port_guid']))
+    return True
+  else:
+    sys.stderr.write('Info: No Infiniband device found\n')
+    return False
 
 
 def detect_system(hw_lst, output=None):
@@ -280,6 +312,7 @@ def _main():
     detect_disks(hrdw)
     detect_system(hrdw)
     detect_ipmi(hrdw)
+    detect_infiniband(hrdw)
     pprint.pprint(hrdw)
 
 if __name__ == "__main__":
