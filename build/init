@@ -18,6 +18,7 @@
 
 # Default behavior if install succeed
 ONSUCCESS="reboot"
+ONFAILURE="halt"
 VERBOSE=0
 
 . init.common
@@ -49,6 +50,11 @@ eval $(cat /proc/cmdline | tr ' ' "\n" | egrep "^ONSUCCESS=")
 if [ "$NOREBOOT" = "1" ]; then
     log "NOREBOOT option is deprecated, please use ONSUCCESS='kexec'"
     ONSUCCESS="kexec"
+fi
+
+if [[ "$DEBUG" = "1" ]]; then
+  log "DEBUG param deprecated, please use ONFAILURE=console"
+  ONFAILURE="console"
 fi
 
 if [ "$VERBOSE" = 1 ]; then
@@ -289,12 +295,11 @@ if /configure; then
                 "halt")
                     log "Automatic poweroff as required by ONSUCCESS"
                     umount -a
-                    sync
-                    poweroff -f
+                    do_halt
                     ;;
                 "console")
                     log "ONSUCCESS=console, launching an interactive shell"
-                    exec /bin/bash -i
+                    do_console
                     ;;
                 *)
                     give_up "Unsupported ONSUCCESS=$ONSUCCESS value"
@@ -309,15 +314,4 @@ if /configure; then
 else
     grep '<!-- ' /configure -A 40 >> /log
     give_up "Problem during system configuration"
-fi
-
-save_log
-
-if [ "$DEBUG" = 1 ]; then
-    echo "Debug mode, launching an interactive shell"
-    exec /bin/bash -i
-else
-    echo "Shutting down the system in 10 sec"
-    sleep 10
-    poweroff -f
 fi

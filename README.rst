@@ -56,7 +56,7 @@ Configure the PXE boot like that::
 
  LABEL eDeploy
  	KERNEL vmlinuz
- 	INITRD initrd.pxe SERV=10.0.2.2 DEBUG=1 VERBOSE=1 RSERV_PORT=1515 HTTP_PORT=9000 HTTP_PATH=/cgi-bin/edeploy/ UPLOAD_LOG=1 ONSUCCESS=kexec
+ 	INITRD initrd.pxe SERV=10.0.2.2 ONFAILURE=console VERBOSE=1 RSERV_PORT=1515 HTTP_PORT=9000 HTTP_PATH=/cgi-bin/edeploy/ UPLOAD_LOG=1 ONSUCCESS=kexec
 
  LABEL eDeploy-http
  	KERNEL vmlinuz
@@ -65,10 +65,13 @@ Configure the PXE boot like that::
  LABEL local
  	LOCALBOOT 0
 
-The ``DEBUG`` variable if set to ``1`` on the kernel command line, it
+The ``ONFAILURE`` variable if set to ``console`` on the kernel command line, it
 enables more debugging, the start of an ssh server on the configured
 system and the launch of an interactive shell at the end of the
-installation.
+installation, three possible values :
+``reboot`` mode will reboot the server once installed.
+``halt`` mode will turn the server off once installed.
+``console`` mode will offer a console on the server once installed.
 
 The ``UPLOAD_LOG`` variable if set to ``1`` on the kernel command line, it
 upload the log file on edeploy's server if the deploiement fails.

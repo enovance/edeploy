@@ -1,3 +1,5 @@
+# -*- shell-script -*-
+
 GIT_REV=""
 
 show_git_rev() {
@@ -34,6 +36,16 @@ save_log() {
 do_reboot() {
     upload_log
     reboot -f
+}
+
+do_halt() {
+    sync
+    sleep 5
+    poweroff -f
+}
+
+do_console() {
+    exec /bin/bash -i
 }
 
 step() {
@@ -133,10 +145,29 @@ create_keys() {
 
 give_up() {
     log "$@"
+    save_log
     upload_log
-    if [ "$DEBUG" = 1 ]; then
-        exec /bin/bash -i
-    fi
+
+    case "$ONFAILURE" in
+      "halt")
+        log "Automatic poweroff as required by ONFAILURE"
+        umount -a
+        do_halt
+        ;;
+      "console")
+        log "ONFAILURE=console, launching an interactive shell"
+        do_console
+        ;;
+      "reboot")
+        log "Automatic poweroff as required by ONFAILURE"
+        umount -a
+        do_reboot
+        ;;
+      *)
+        log "Unsupported ONFAILURE=$ONFAILURE value"
+        do_console
+        ;;
+    esac
 }
 
 create_main_directories() {
@@ -295,20 +326,20 @@ while true; do
     RUN=$(( $RUN + 1 ))
     sleep 10
     if [ "$RUN" != "$MAX_RUN" ]; then
-    log "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
-    log "!! NO DHCP FOUND ! Waiting 10 seconds before trying again. !!"
-    log "!! ($RUN / $MAX_RUN)                                       !!"
-    log "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+      log "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+      log "!! NO DHCP FOUND ! Waiting 10 seconds before trying again. !!"
+      log "!! ($RUN / $MAX_RUN)                                       !!"
+      log "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
     else
-    log "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
-    log "!! NO DHCP FOUND after $RUN tries. Rebooting in 10 seconds !!"
-    log "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
-    if [ "$DEBUG" != 1 ]; then
+      log "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+      log "!! NO DHCP FOUND after $RUN tries. Rebooting in 10 seconds !!"
+      log "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+      if [ "$DEBUG" != 1 ]; then
         do_reboot
-    else
-            show_kernel_modules
+      else
+        show_kernel_modules
         give_up "!! DEBUG mode is set, let's give up as no DHCP server found"
-    fi
+      fi
     fi
 done
 }
