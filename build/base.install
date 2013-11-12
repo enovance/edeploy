@@ -27,7 +27,7 @@ ORIG=$(cd $(dirname $0); pwd)
 . functions
 
 check_binary() {
-	type -p $1 || fatal_error "$1 is missing"; >&2; exit 1;
+	type -p $1 || { fatal_error "$1 is missing"; >&2; exit 1; }
 }
 
 init_redhat_chroot() {
