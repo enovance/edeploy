@@ -112,6 +112,14 @@ function verify() {
     rsync --dry-run -av --delete-after $EXCLUDE rsync://${RSERV}:${RSERV_PORT}/install/${VERS}/${ROLE}/ /
 }
 
+function version() {
+    echo $VERS
+}
+
+function role() {
+    echo $ROLE
+}
+
 function check_args() {
     if [ -z "$VERS" -o -z "$ROLE" -o -z "$RSERV" -o -z "$RSERV_PORT" ]; then
         echo "${EDEPLOY_DIR}/conf must contain RSERV, VERS, ROLE and RSERV_PORT" 1>&2
@@ -132,13 +140,17 @@ function help() {
 
     verify: verify the modified files regarding the version on the server.
 
+    version: show the guest current version.
+
+    role: show the role the guest has been setup as.
+
     help: display this help message.
 
 EOF
 }
 
 function usage() {
-    echo "Usage: $progname ({test-}upgrade <target version>|list|verify|help)"
+    echo "Usage: $progname ({test-}upgrade <target version>|list|verify|help|version|role)"
 }
 
 command="$1"
@@ -148,7 +160,7 @@ case "$command" in
     help)
         help
     ;;
-    test-upgrade|upgrade|list|verify)
+    test-upgrade|upgrade|list|verify|version|role)
         check_args
         "$command" "$@"
     ;;
