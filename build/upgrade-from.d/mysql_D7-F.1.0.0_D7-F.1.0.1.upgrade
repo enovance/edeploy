@@ -29,5 +29,4 @@ export DEBIAN_FRONTEND=noninteractive
 
 set -x
 
-update_repositories $dir
 install_packages $dir mysql-server-5.5 apache2

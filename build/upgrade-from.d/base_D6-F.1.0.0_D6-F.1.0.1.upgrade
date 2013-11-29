@@ -27,5 +27,4 @@ export DEBIAN_FRONTEND=noninteractive
 . common
 set -x
 
-update_repositories $TDIR
 update_system $TDIR
