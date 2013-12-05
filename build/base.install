@@ -37,7 +37,7 @@ init_redhat_chroot() {
     local rpm_repository="$REPOSITORY"
     local next_repository=""
 
-    if [ -z $REPOSITORY ] && [ -z $ISO_PATH ];then
+    if [ "$(dist)" = "redhat" ] && [ -z $REPOSITORY ] && [ -z $ISO_PATH ];then
         fatal_error "You must set your repository in the variable REPOSITORY or the ISO path in the ISO_PATH variable."
     fi
 
