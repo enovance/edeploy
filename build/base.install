@@ -98,17 +98,8 @@ bootstrap() {
                 check_binary rpm
 
                 case $dist in
-                    centos)
-                        release_rpm_url="http://mirror.centos.org/centos/6.4/os/x86_64/Packages/centos-release-6-4.el6.centos.10.x86_64.rpm"
-                        init_redhat_chroot $target $release_rpm_url $dist
-                        ;;
-                    redhat)
-                       if [ ! -z "$ISO_PATH" ]; then
-                            release_rpm_url="${target}/repo/Packages/redhat-release-server-6Server-6.5.0.1.el6.x86_64.rpm"
-                        else
-                            release_rpm_url="${REPOSITORY}/Packages/redhat-release-server-6Server-6.5.0.1.el6.x86_64.rpm"
-                        fi
-                        init_redhat_chroot $target $release_rpm_url $dist
+                    centos|redhat)
+                        init_redhat_chroot $target $repository $dist
                         ;;
                     *)
                         fatal_error "Unsupported RPM+YUM based distro: ${DIST}"

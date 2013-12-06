@@ -15,6 +15,18 @@ add_main_repository() {
         echo "http://archive.ubuntu.com/ubuntu"
         return 0
     ;;
+    centos)
+        echo "http://mirror.centos.org/centos/6.5/os/x86_64/Packages/centos-release-6-5.el6.centos.11.1.x86_64.rpm"
+        return 0
+    ;;
+    redhat)
+        if [ ! -z "$ISO_PATH" ]; then
+            echo "${target}/repo/Packages/redhat-release-server-6Server-6.5.0.1.el6.x86_64.rpm"
+        else
+            echo "${REPOSITORY}/Packages/redhat-release-server-6Server-6.5.0.1.el6.x86_64.rpm"
+        fi
+        return 0
+    ;;
     *)
         return 1
     ;;
