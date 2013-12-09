@@ -7,7 +7,7 @@ add_main_repository() {
   fi
 
   case "$dist" in
-    wheezy|squeeze|jessie)
+    squeeze|wheezy|jessie)
         echo "http://cdn.debian.net/debian"
         return 0
     ;;
@@ -43,7 +43,7 @@ get_openstack_repository() {
   fi
 
   case "$dist" in
-    wheezy|squeeze|jessie)
+    squeeze|wheezy|jessie)
         echo "deb http://cloud.pkgs.enovance.com/${RELEASE}-${openstack_release}/ ${openstack_release} main"
         return 0
     ;;
