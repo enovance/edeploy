@@ -126,20 +126,20 @@ install_base_packages() {
     local deb_packages=" wget sudo locales openssh-server parted net-tools isc-dhcp-client grub-pc kbd rsync ifupdown lshw netbase dmidecode bash curl hdparm acpid ifenslave kexec-tools lsb-release"
     local repository=$(add_main_repository $dist)
     case $dist in
-        precise)
+        lucid|precise|quantal|raring|saucy|trusty)
             packages="$cross_distro_packages linux-image-generic-lts-raring linux-headers-generic-lts-raring iputils-ping linux-firmware grub2 $deb_packages"
-            echo "deb $repository precise main" > ${target}/etc/apt/sources.list
-            echo "deb $repository precise-updates main" >> ${target}/etc/apt/sources.list
-            echo "deb $repository precise universe" >> ${target}/etc/apt/sources.list
-            echo "deb $repository precise-updates universe" >> ${target}/etc/apt/sources.list
-            echo "deb http://security.ubuntu.com/ubuntu precise-security main" >> ${target}/etc/apt/sources.list
-            echo "deb http://security.ubuntu.com/ubuntu precise-security universe" >> ${target}/etc/apt/sources.list
+            echo "deb $repository $dist main" > ${target}/etc/apt/sources.list
+            echo "deb $repository ${dist}-updates main" >> ${target}/etc/apt/sources.list
+            echo "deb $repository $dist universe" >> ${target}/etc/apt/sources.list
+            echo "deb $repository ${dist}-updates universe" >> ${target}/etc/apt/sources.list
+            echo "deb http://security.ubuntu.com/ubuntu ${dist}-security main" >> ${target}/etc/apt/sources.list
+            echo "deb http://security.ubuntu.com/ubuntu ${dist}-security universe" >> ${target}/etc/apt/sources.list
             ;;
-        wheezy)
+        squeeze|wheezy|jessie)
             packages="$cross_distro_packages linux-image-amd64 ipmitool libui-dialog-perl htop acpi-support-base inetutils-ping firmware-bnx2 $deb_packages"
-            echo "deb $repository wheezy non-free" > ${target}/etc/apt/sources.list.d/nonfree.list
-            echo "deb http://security.debian.org/ wheezy/updates main" >  ${target}/etc/apt/sources.list.d/updates.list
-            echo "deb $repository wheezy-updates main" >> ${target}/etc/apt/sources.list.d/updates.list
+            echo "deb $repository $dist non-free" > ${target}/etc/apt/sources.list.d/nonfree.list
+            echo "deb http://security.debian.org/ ${dist}/updates main" >  ${target}/etc/apt/sources.list.d/updates.list
+            echo "deb $repository ${dist}-updates main" >> ${target}/etc/apt/sources.list.d/updates.list
             ;;
         centos|redhat)
             packages="$cross_distro_packages passwd kernel redhat-lsb-core wget sudo openssh-server parted coreutils perl e2fsprogs net-tools initscripts upstart vconfig dhclient grub grubby kbd rsync dmidecode bash curl hdparm acpid pciutils module-init-tools iproute"

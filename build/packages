@@ -32,7 +32,7 @@ package_type() {
         DISTRO="$RELEASE"
     fi
     case "$DISTRO" in
-        wheezy|precise)
+        squeeze|wheezy|jessie|lucid|precise|quantal|raring|saucy|trusty)
             echo "deb"
         ;;
         centos|redhat)
@@ -50,7 +50,7 @@ package_tool() {
         DISTRO="$RELEASE"
     fi
     case "$DISTRO" in
-        wheezy|precise)
+        squeeze|wheezy|jessie|lucid|precise|quantal|raring|saucy|trusty)
             echo "apt"
         ;;
         centos|redhat)
