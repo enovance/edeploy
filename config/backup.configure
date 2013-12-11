@@ -42,8 +42,8 @@ print "# -> %s" % data
 print "Creating Partitions"
 run('dd if=/dev/zero of=%s bs=1M count=100' % data)
 
-run('hdparm -z %s' % bootable_disk)
-run('hdparm -z %s' % data)
+run('blockdev --rereadpt %s' % bootable_disk)
+run('blockdev --rereadpt %s' % data)
 
 run('parted -a optimal --script %s mktable gpt' % bootable_disk)
 run('parted -a optimal --script %s mkpart primary 0%% 10' % bootable_disk)

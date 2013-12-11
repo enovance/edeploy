@@ -123,7 +123,7 @@ install_base_packages() {
     cp -f /etc/resolv.conf "$target/etc/"
     local packages=""
     local cross_distro_packages="pciutils rsyslog lvm2"
-    local deb_packages=" wget sudo locales openssh-server parted net-tools isc-dhcp-client grub-pc kbd rsync ifupdown lshw netbase dmidecode bash curl hdparm acpid ifenslave kexec-tools lsb-release"
+    local deb_packages=" wget sudo locales openssh-server parted net-tools isc-dhcp-client grub-pc kbd rsync ifupdown lshw netbase dmidecode bash curl acpid ifenslave kexec-tools lsb-release"
     local repository=$(add_main_repository $dist)
     case $dist in
         precise)
