@@ -47,7 +47,7 @@ rsync -aH --delete-before ${SRC}/ ${DST2}/
 dir=$DST2
 common_setup
 
-PACKAGES="python-netaddr ethtool sdparm gzip lshw xfsprogs"
+PACKAGES="python-netaddr ethtool sdparm gzip lshw xfsprogs hdparm"
 add_epel_repository $DIST $dir
 update_repositories $dir
 install_packages $dir $PACKAGES
