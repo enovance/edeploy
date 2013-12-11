@@ -24,7 +24,7 @@ bootable_disk = cli.ctrl_create_ld(slot, (disk1,disk2), raid='0')
 print "# -> %s" % bootable_disk
 print "Creating Partitions"
 run('dd if=/dev/zero of=%s bs=1M count=100' % bootable_disk)
-run('hdparm -z %s' % bootable_disk)
+run('blockdev --rereadpt %s' % bootable_disk)
 run('parted -a optimal --script %s mktable gpt' % bootable_disk)
 run('parted -a optimal --script %s mkpart primary 0%% 10' % bootable_disk)
 run('parted --script %s set 1 boot on' % bootable_disk)
@@ -61,7 +61,7 @@ var_nodev = disk.replace('/dev/','')
 print "# -> %s" % disk
 print "Creating Partitions"
 run('dd if=/dev/zero of=%s bs=1M count=100' % disk)
-run('hdparm -z %s' % disk)
+run('blockdev --rereadpt %s' % disk)
 run('parted -a optimal --script %s mktable gpt' % disk)
 run('parted -a optimal --script %s mkpart primary 0%% 100%%' % disk)
 
