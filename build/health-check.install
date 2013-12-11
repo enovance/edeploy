@@ -50,7 +50,7 @@ rsync -aH --delete-before ${SRC}/ ${DST2}/
 dir=$DST2
 common_setup
 
-PACKAGES="sysbench fio python-psutil netperf python-netaddr ethtool python-numpy sdparm gzip lshw"
+PACKAGES="sysbench fio python-psutil netperf python-netaddr ethtool python-numpy sdparm gzip lshw hdparm"
 add_epel_repository $DIST $dir
 update_repositories $dir
 install_packages $dir "$PACKAGES"
