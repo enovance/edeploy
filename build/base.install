@@ -27,7 +27,7 @@ ORIG=$(cd $(dirname $0); pwd)
 . common
 
 check_binary() {
-	type -p $1 || fatal_error "$1 is missing"
+	type -p $1 || { fatal_error "$1 is missing" >&2; exit 1; }
 }
 
 init_redhat_chroot() {
@@ -264,7 +264,7 @@ if [ $? -eq 0 ]; then
     echo "Exiting"
     exit 1
 fi
-
+# I dont think this will work as set -e is sourced above from the file functions
 set -e              # abort on failure
 set -x              # print commands
 
