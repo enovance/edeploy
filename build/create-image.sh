@@ -28,9 +28,9 @@ do_fatal_error() {
 setup_network() {
 if [ "$NETWORK_CONFIG" = "auto" ]; then
     # Fix network to start eth0 in DHCP
-
-    if [ -r "$MDIR"/etc/network/interfaces ]; then
-    cat > "$MDIR"/etc/network/interfaces <<EOF
+    if [ "$(package_type)" = "deb" ]; then
+        if [ -r "$MDIR"/etc/network/interfaces ]; then
+            cat > "$MDIR"/etc/network/interfaces <<EOF
 # interfaces(5) file used by ifup(8) and ifdown(8)
 auto lo
 iface lo inet loopback
@@ -38,6 +38,14 @@ iface lo inet loopback
 auto eth0
 iface eth0 inet dhcp
 EOF
+        fi
+    elif [ "$(package_type)" = "rpm" ]; then
+        cat > "$MDIR"/etc/sysconfig/network-scripts/ifcfg-eth0 <<EOF
+DEVICE=eth0
+BOOTPROTO=dhcp
+ONBOOT=yes
+EOF
+        echo "NETWORKING=yes" >> "$MDIR"/etc/sysconfig/network
     fi
 fi
 }
@@ -147,17 +155,10 @@ mount "$DEV" "$MDIR"
 
 rsync -a "$DIR/" "$MDIR/"
 
-# Install Grub on the boot sector
+# Mount nested /dev and /proc
 
 mount -obind /dev "$MDIR/"dev
 mount -t proc none "$MDIR/"proc
-
-cat > "$MDIR"/boot/grub/device.map <<EOF
-(hd0) $DISK
-(hd0,1) $PART
-EOF
-
-do_chroot "$MDIR" grub-install --modules="ext2 part_msdos" --no-floppy "$DISK"
 
 # Configure Grub
 
@@ -165,14 +166,50 @@ UUID=$(blkid -s UUID -o value "$PART")
 export GRUB_DEVICE_UUID=$UUID
 echo $GRUB_DEVICE_UUID
 
-if [ ! -r "$MDIR"/boot/grub/grub.cfg ]; then
-    do_chroot "$MDIR" grub-mkconfig -o /boot/grub/grub.cfg || :
-fi
+if [ -x ${MDIR}/usr/sbin/grub-mkconfig ]; then
+    # Install grub2
+    cat > "$MDIR"/boot/grub/device.map <<EOF
+(hd0) $DISK
+(hd0,1) $PART
+EOF
 
-# Fix generated grub.cfg
-# As we run on primary partition, let's fix the numbering
-sed -i -e 's/msdos5/msdos1/g' $MDIR/boot/grub/grub.cfg
-sed -i -e 's/\t*loopback.*//' -e 's/\t*set root=.*//' -e "s/\(--set=root \|UUID=\)[^ ]*/\1$UUID/p" $MDIR/boot/grub/grub.cfg
+    do_chroot "$MDIR" grub-install --modules="ext2 part_msdos" --no-floppy "$DISK"
+
+    if [ ! -r "$MDIR"/boot/grub/grub.cfg ]; then
+        do_chroot "$MDIR" grub-mkconfig -o /boot/grub/grub.cfg || :
+    fi
+
+    # Fix generated grub.cfg
+    sed -i -e 's/\t*loopback.*//' -e 's/\t*set root=.*//' -e "s/\(--set=root \|UUID=\)[^ ]*/\1$UUID/p" $MDIR/boot/grub/grub.cfg
+    sed -i -e 's/msdos5/msdos1/g' $MDIR/boot/grub/grub.cfg
+else
+    # Grub1 doesn't have /usr/sbin/grub-mkconfig, failback on extlinux for booting
+    if [ ! -x extlinux/extlinux ] || [ ! -f extlinux/menu.c32 ] || [ ! -f extlinux/libutil.c32 ]; then
+        rm -rf extlinux
+        mkdir -p extlinux
+        # Installing extlinux & mbr from source
+        SYSLINUX_VER=5.10
+        wget --no-verbose ftp://ftp.kernel.org/pub/linux/utils/boot/syslinux/${TESTING_SYSLINUX}/syslinux-${SYSLINUX_VER}.tar.xz
+        tar -xf syslinux-${SYSLINUX_VER}.tar.xz
+        cp syslinux-${SYSLINUX_VER}/extlinux/extlinux extlinux/
+        cp syslinux-${SYSLINUX_VER}/mbr/mbr.bin extlinux/
+        cp syslinux-${SYSLINUX_VER}/com32/menu/menu.c32 extlinux/
+        cp syslinux-${SYSLINUX_VER}/com32/libutil/libutil.c32 extlinux/
+        rm -rf syslinux-${SYSLINUX_VER}*
+    fi
+    for kernel in ${MDIR}/boot/vmlinuz-*; do
+        kversion=`echo $kernel | awk -F'vmlinuz-' '{print $NF}'`;
+        KERNEL="/boot/vmlinuz-${kversion}"
+        INITRD="/boot/initramfs-${kversion}.img"
+        echo "default Linux" >  ${MDIR}/boot/extlinux.conf
+        echo "label Linux" >>  ${MDIR}/boot/extlinux.conf
+        echo "  kernel $KERNEL root=UUID=$UUID nomodeset rw $BOOT_ARG" >> ${MDIR}/boot/extlinux.conf
+        echo "  initrd $INITRD" >> ${MDIR}/boot/extlinux.conf
+        extlinux/extlinux --install ${MDIR}/boot
+    done
+    # install mbr
+    dd if=extlinux/mbr.bin of=$IMG conv=notrunc
+fi
 
 sync
 
