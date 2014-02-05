@@ -54,6 +54,7 @@ add_openstack_repository() {
       return 0
     ;;
     $supported_redhat_dists)
+      add_rhn_channel $dir rhel-x86_64-server-6-ost-4
       return 0
     ;;
     $supported_centos_dists)
@@ -99,6 +100,7 @@ remove_openstack_repository() {
       return 0
     ;;
     $supported_redhat_dists)
+      disable_repository $dir rhel-x86_64-server-6-ost-4
       return 0
     ;;
     $supported_centos_dists)
