@@ -189,10 +189,6 @@ clean_mount_points() {
         return
     fi
 
-    # Since /dev is a copy, we shall clean it as it will be reconstructed at boot time
-    rm -rf ${dir}/dev
-    mkdir -p ${dir}/dev
-
     a=10
     local lazy=""
 
@@ -212,6 +208,9 @@ clean_mount_points() {
             return 1
         fi
     done
+
+    # add dev dir if does exist
+    mkdir -p ${dir}/dev
 
     return 0
 }

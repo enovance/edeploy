@@ -51,7 +51,7 @@ fi
 }
 
 clean_temporary() {
-    rm -rf "$MDIR/"dev
+    umount "$MDIR/"dev
     umount "$MDIR/"proc
     umount "$MDIR"
 
@@ -167,11 +167,8 @@ trap do_cleanup 0
 
 rsync -a "$DIR/" "$MDIR/"
 
-# Let's create a copy of the current /dev
-mkdir -p "${MDIR}/"/dev/pts
-rsync -a --delete-before --exclude=shm /dev/ ${MDIR}/dev/
-
-# Mount /proc
+# Mount nested /dev and /proc
+mount -o bind /dev "$MDIR/"dev
 mount -t proc none "$MDIR/"proc
 
 # Configure Grub
