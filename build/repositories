@@ -34,9 +34,10 @@ add_main_repository() {
   esac
 }
 
-get_openstack_repository() {
-  local dist=$1
-  openstack_release=$2
+add_openstack_repository() {
+  local dir=$1
+  local dist=$2
+  local openstack_release=$3
 
   if [ -n "$OPENSTACK_REPOSITORY" ]; then
     echo "$OPENSTACK_REPOSITORY"
@@ -45,39 +46,85 @@ get_openstack_repository() {
 
   case "$dist" in
     $supported_debian_dists)
-        echo "deb http://cloud.pkgs.enovance.com/${RELEASE}-${openstack_release}/ ${openstack_release} main"
-        return 0
+      echo "deb http://cloud.pkgs.enovance.com/${RELEASE}-${openstack_release}/ ${openstack_release} main" > ${dir}/etc/apt/sources.list.d/openstack-$RELEASE-$OS_VERS.list
+      return 0
     ;;
     $supported_ubuntu_dists)
-        echo "deb http://cloud.pkgs.enovance.com/${RELEASE}-${openstack_release}/ ${openstack_release} main"
-        return 0
+      echo "deb http://cloud.pkgs.enovance.com/${RELEASE}-${openstack_release}/ ${openstack_release} main" > ${dir}/etc/apt/sources.list.d/openstack.list
+      return 0
     ;;
     $supported_redhat_dists)
-        return 0
+      add_rhn_channel $dir rhel-x86_64-server-6-ost-4
+      return 0
     ;;
     $supported_centos_dists)
-        current_rpm_release="undef"
-        cloud_init_release="0.7.2-2.el6"
-        case "$openstack_release" in
-            "havana")
-                current_rpm_release=7
-            ;;
-            "grizzly")
-                current_rpm_release=3
-            ;;
-            *)
-                fatal_error "Unsupported openstack release ($openstack_release) for $dist distribution"
-            ;;
-        esac
-        echo "http://rdo.fedorapeople.org/openstack-${openstack_release}/rdo-release-${openstack_release}-${current_rpm_release}.noarch.rpm"
-        return 0
-    ;;
+      current_rpm_release="undef"
+      case "$openstack_release" in
+        "havana")
+          current_rpm_release=7
+        ;;
+        "grizzly")
+          current_rpm_release=3
+        ;;
+        *)
+          fatal_error "Unsupported openstack release ($openstack_release) for $dist distribution"
+        ;;
+      esac
+      install_packages $dir "http://rdo.fedorapeople.org/openstack-${openstack_release}/rdo-release-${openstack_release}-${current_rpm_release}.noarch.rpm"
+      return 0
+      ;;
     *)
-        return 1
+      return 1
     ;;
   esac
+
 }
 
+remove_openstack_repository() {
+  local dir=$1
+  local dist=$2
+  local openstack_release=$3
+
+  if [ -n "$OPENSTACK_REPOSITORY" ]; then
+    echo "$OPENSTACK_REPOSITORY"
+    return
+  fi
+
+  case "$dist" in
+    $supported_debian_dists)
+      do_chroot $dir rm /etc/apt/sources.list.d/openstack-$RELEASE-$OS_VERS.list
+      return 0
+    ;;
+    $supported_ubuntu_dists)
+      do_chroot $dir rm /etc/apt/sources.list.d/openstack.list
+      return 0
+    ;;
+    $supported_redhat_dists)
+      disable_repository $dir rhel-x86_64-server-6-ost-4
+      return 0
+    ;;
+    $supported_centos_dists)
+      current_rpm_release="undef"
+      case "$openstack_release" in
+        "havana")
+          current_rpm_release=7
+        ;;
+        "grizzly")
+          current_rpm_release=3
+        ;;
+        *)
+          fatal_error "Unsupported openstack release ($openstack_release) for $dist distribution"
+        ;;
+      esac
+      do_chroot $dir rpm -e rdo-release-${openstack_release}-${current_rpm_release}
+      return 0
+      ;;
+    *)
+      return 1
+    ;;
+  esac
+
+}
 
 PUPPET_RELEASE=6-7
 add_puppet_repository() {
