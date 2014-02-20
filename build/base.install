@@ -178,9 +178,13 @@ add_megacli_repository() {
   local dist=$1
   local target=$2
   case "$dist" in
-      $supported_debian_dists|$supported_ubuntu_dists)
+      $supported_debian_dists)
 	  wget -O - http://hwraid.le-vert.net/debian/hwraid.le-vert.net.gpg.key | do_chroot $target apt-key add -
-	  echo "deb http://hwraid.le-vert.net/debian wheezy main" > $target/etc/apt/sources.list.d/hwraid.list
+	  echo "deb http://hwraid.le-vert.net/debian ${dist} main" > $target/etc/apt/sources.list.d/hwraid.list
+	  ;;
+      $supported_ubuntu_dists)
+          wget -O - http://hwraid.le-vert.net/ubuntu/hwraid.le-vert.net.gpg.key | do_chroot $target apt-key add -
+          echo "deb http://hwraid.le-vert.net/ubuntu ${dist} main" > $target/etc/apt/sources.list.d/hwraid.list
 	  ;;
       $supported_centos_dists|$supported_redhat_dists)
 	  check_binary unzip
