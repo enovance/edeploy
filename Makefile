@@ -31,10 +31,10 @@ install-www:
 	cd config; for file in *.cmdb state; do echo $$file; if [ ! -e $(WWW_CONFIG_DIR)/$$file ]; then install -m 644 $$file $(WWW_CONFIG_DIR)/ ; fi ; done
 	chown $(WWW_USER):$(WWW_USER) $(WWW_CONFIG_DIR)/*.cmdb $(WWW_CONFIG_DIR)/state
 	chown $(WWW_USER):$(WWW_USER) $(WWW_LOGGING_DIR) $(WWW_HARDWARE_DIR) $(WWW_HEALTH_DIR)
-	sed -i -e "s|^CONFIGDIR=.*|CONFIGDIR=$(WWW_CONF_DIR)|" $(ETC_DIR)/edeploy.conf
-	sed -i -e "s|^LOGDIR=.*|LOGDIR=$(WWW_LOG_DIR)|" $(ETC_DIR)/edeploy.conf
-	sed -i -e "s|^HWDIR=.*|HWDIR=$(WWW_HW_DIR)|" $(ETC_DIR)/edeploy.conf
-	sed -i -e "s|^HEALTHDIR=.*|HEALTHDIR=$(WWW_HL_DIR)|" $(ETC_DIR)/edeploy.conf
+	sed -i -e "s|^CONFIGDIR=.*|CONFIGDIR=$(WWW_CONFIG_DIR)|" $(ETC_DIR)/edeploy.conf
+	sed -i -e "s|^LOGDIR=.*|LOGDIR=$(WWW_LOGGING_DIR)|" $(ETC_DIR)/edeploy.conf
+	sed -i -e "s|^HWDIR=.*|HWDIR=$(WWW_HARDWARE_DIR)|" $(ETC_DIR)/edeploy.conf
+	sed -i -e "s|^HEALTHDIR=.*|HEALTHDIR=$(WWW_HEALTH_DIR)|" $(ETC_DIR)/edeploy.conf
 
 install-build:
 	mkdir -p $(SHARE_BUILD_DIR) && chmod 755 $(SHARE_BUILD_DIR)
