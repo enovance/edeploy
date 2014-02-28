@@ -247,14 +247,6 @@ cleanup() {
     # Let's remove any trace of a rhn configuration
     unregister_rhn $DIST $dir
 
-    # Let's disable apt-get and yum for normal usage
-    for pkgmngr in apt-get yum; do
-	if [ ! -f ${dir}/usr/bin/${pkgmngr}.moved -a -f ${dir}/usr/bin/${pkgmngr} ]; then
-	    mv -f ${dir}/usr/bin/${pkgmngr} ${dir}/usr/bin/${pkgmngr}.moved
-	    ln -s /bin/true ${dir}/usr/bin/${pkgmngr}
-	fi
-    done
-
     # Remove policy for invoke-rc.d (this has side effects on puppet for exemple)
     if [ -f ${dir}/usr/sbin/policy-rc.d ]; then
 	mv ${dir}/usr/sbin/policy-rc.d ${dir}/usr/sbin/policy-rc.d.moved
@@ -377,13 +369,6 @@ common_setup() {
     # magical stuff to let kernel upgrade work
     mkdir -p "${dir}"/etc/default/grub.d
     echo 'exit 0' > "${dir}"/etc/default/grub.d/edeploy.cfg
-
-    # let apt-get and yum work in build scripts
-    for pkgmngr in apt-get yum; do
-	if [ -f ${dir}/usr/bin/${pkgmngr}.moved ]; then
-	    mv -f ${dir}/usr/bin/${pkgmngr}.moved ${dir}/usr/bin/${pkgmngr}
-	fi
-    done
 
     # put in place a policy for invoke-rc.d
     if [ -f ${dir}/usr/sbin/policy-rc.d.moved ]; then
