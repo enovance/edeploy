@@ -261,6 +261,19 @@ the build.  The version string will be put inside the **VERSION**
 In this example, we choose H-1.0.0 standing for 'Havana , build version
 1.0.0'. We add **VERSION='H-1.0.0'** on the command line.
 
+Defining the base dependency (optional)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+By default, a role is built depending on the ``base`` role.
+
+In case your role depends on another role, e.g. openstack-full depending
+on openstack-common: ``openstack-full → openstack-common → base``, you
+can override the default behaviour by setting the ``BASE`` variable:
+
+```
+make openstack-full BASE=openstack-common
+```
+
 Choosing the default package repository
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -496,61 +509,30 @@ Makefile & Dependencies
 ~~~~~~~~~~~~~~~~~~~~~~~
 
 To make it easier to build roles, eDeploy provides a central Makefile
-($BUILDDIR/Makefile) to build the roles. Each role as a corresponding
-set of entry in the Makefile. In this example we focus on the mysql
-role.
+($BUILDDIR/Makefile). Roles targets are automatically detected by the 
+presence of the <role>.install file.
 
-To create the role target in the Makefile, here the mysql target as
-follow :
+In order to list the available roles, type: ``make list``
 
-.. code:: bash
-
-   mysql: $(INST)/mysql.done
-
-Then create the matching target. This is where you actually run the
-install script (ie. mysql.install) and specify on which role and version
-it is based. (ie. $(INST)/base and $(VERS)). Once the role got built, a
-mysql.done file is created that means the job has been done.
-
-.. code:: bash
-
-   $(INST)/mysql.done: mysql.install $(INST)/base.done
-   ./mysql.install $(INST)/base $(INST)/mysql $(VERS)
-   touch $(INST)/mysql.done
-
-To ease the role creation, a sample target named 'sample' is included in
-the makefile. A simple copy/paste is a good starting point.
-
-Find below various examples of build target :
+Find below various examples of build target:
 
 **openstack-compute role based on openstack-common**
 
 .. code:: bash
 
-   openstack-compute: $(INST)/openstack-compute.done
-   $(INST)/openstack-compute.done: openstack-compute.install
-   $(INST)/openstack-common.done
-          ./openstack-compute.install
-   $(INST)/openstack-common $(INST)/openstack-compute $(VERS)
-          touch $(INST)/openstack-compute.done
+   make openstack-full BASE=openstack-common
 
 **devstack role based on cloud**
 
 .. code:: bash
 
-   devstack: $(INST)/devstack.done
-   $(INST)/devstack.done: devstack.install $(INST)/cloud.done
-          ./devstack.install $(INST)/cloud $(INST)/devstack $(DIST)$(VERS)
-          touch $(INST)/devstack.done
+   make devstack BASE=cloud
 
 **cloud role based on base**
 
 .. code::  bash
 
-   cloud: $(INST)/cloud.done
-   $(INST)/cloud.done: cloud.install $(INST)/base.done
-          ./cloud.install $(INST)/base $(INST)/cloud $(VERS)
-          touch $(INST)/cloud.done
+   make cloud
 
 Basic API to add repositories or packages
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
