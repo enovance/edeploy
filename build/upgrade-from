@@ -139,7 +139,8 @@ cp -p ${ORIG}/edeploy ${TDIR}/usr/sbin/
 script="$BASE".d/${ROLE}_${FROM}_${TO}.upgrade
 
 if [ -x "$script" ]; then
-    dir=$TDIR "$script"
+    dir=$TDIR 
+    . "$script"
 fi
 
 setup_metadata
