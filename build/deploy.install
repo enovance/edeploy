@@ -53,6 +53,11 @@ install_edeploy() {
 	exit 1
     fi
 
+    if [ 14 -gt $(ansible --version | cut -d' ' -f2 | sed 's/\.//') ]; then
+	echo "ansible-1.4 needed. Use 'pip install --upgrade ansible' to do so." 1>&2
+	exit 1
+    fi
+
     # Install the packages needed by the chroot transport of ansible on the host and
     # git to checkout pxemngr for its ansible playbook
     install_packages $dir python-apt ca-certificates git
