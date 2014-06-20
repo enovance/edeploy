@@ -73,8 +73,10 @@ install_edeploy() {
     cd pxemngr/ansible
     # do not start apache in the chroot
     sed -e 's@service apache2 restart@/bin/true@' < pxemngr-install.yml > pxemngr-install2.yml
+    # /var/tmp/ is mandatory for django manage syncdb
+    [ ! -d "$dir/var/tmp" ] && mkdir $dir/var/tmp
     ansible-playbook -c chroot -i $t pxemngr-install2.yml
-    rm -f pxemngr-install2.yml
+    rm -f $t pxemngr-install2.yml
     popd
 
     # edeploy part
