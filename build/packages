@@ -14,10 +14,10 @@ array_diff() {
 save_package_list() {
     case $(package_type) in
         "deb")
-            do_chroot ${dir} dpkg -l > ${INST}/${ROLE}.packages
+            do_chroot ${dir} dpkg -l | grep '^ii' | awk '{print $2 "\t" $3}' > ${INST}/${ROLE}.packages
             ;;
         "rpm")
-            do_chroot ${dir} rpm -qa > ${INST}/${ROLE}.packages
+            do_chroot ${dir} rpm -qa --queryformat '%{NAME} %{VERSION}-%{RELEASE}\n' > ${INST}/${ROLE}.packages
             ;;
         *)
             fatal_error "Unsupported package_type ($package_type) in save_package_list()"
