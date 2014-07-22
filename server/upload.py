@@ -435,7 +435,7 @@ def main():
         fatal_error("'Invalid hardware file: %s'" % str(excpt))
 
     # avoid concurrent accesses
-    lock_filename = config_get(section, 'LOCKFILE', '/tmp/edeploy.lock')
+    lock_filename = config_get(section, 'LOCKFILE', '/var/run/edeploy.lock')
     try:
         lockfd = lock(lock_filename)
     except Exception, excpt:

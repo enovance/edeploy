@@ -256,8 +256,10 @@ install_megacli() {
                 wget "https://github.com/enovance/edeploy-roles/blob/master/files/${MEGACLIVER}_MegaCLI_Linux.zip?raw=true" -O  $MEGACLIZIP
             fi
             if [ -r "$MEGACLIZIP" ]; then
-                unzip "${MEGACLIZIP}" "${MEGACLIVER}_MegaCLI_Linux/Linux MegaCLI ${MEGACLIVER}/MegaCli-${MEGACLIVER}-1.noarch.rpm" -d $target/tmp
-                chroot $target rpm -ivh "/tmp/${MEGACLIVER}_MegaCLI_Linux/Linux MegaCLI ${MEGACLIVER}/MegaCli-${MEGACLIVER}-1.noarch.rpm"
+                TMP_BUILD=$(mktemp -d --suffix=-edeploy --tmpdir=$target/tmp)
+                unzip "${MEGACLIZIP}" "${MEGACLIVER}_MegaCLI_Linux/Linux MegaCLI ${MEGACLIVER}/MegaCli-${MEGACLIVER}-1.noarch.rpm" -d $TMP_BUILD
+                CHROOT_TMP_BUILD=$(echo -n ${TMP_BUILD} | sed "s#${target}##")
+                chroot $target rpm -ivh "${CHROOT_TMP_BUILD}/${MEGACLIVER}_MegaCLI_Linux/Linux MegaCLI ${MEGACLIVER}/MegaCli-${MEGACLIVER}-1.noarch.rpm"
                 chroot $target ln -sf /opt/MegaRAID/MegaCli/MegaCli64 /usr/sbin/megacli
             else
                 echo "NO MEGACLI ARCHIVE AVAILABLE: download it from www.lsi.com" 1>&2
@@ -274,10 +276,12 @@ install_hp_raid_cli_tool() {
         if [ ! -r $target/../../$package_name ]; then
             wget --no-verbose http://downloads.linux.hp.com/SDR/downloads/MCP/pool/non-free/$package_name -O $target/../../$package_name
         fi
-        cp $target/../../$package_name $target/tmp/
+        TMP_BUILD=$(mktemp -d --suffix=-edeploy --tmpdir=$target/tmp)
+        cp $target/../../$package_name ${TMP_BUILD}
         install_packages $target "python-pexpect"
-        do_chroot $target dpkg -i /tmp/$package_name
-        rm -f $target/tmp/$package_name
+        CHROOT_TMP_BUILD=$(echo -n ${TMP_BUILD} | sed "s#${target}##")
+        do_chroot $target dpkg -i ${CHROOT_TMP_BUILD}/$package_name
+        [ -d ${TMP_BUILD} ] && rm -Rf ${TMP_BUILD}
     elif [ "$(package_type)" = "rpm" ]; then
         install_packages $target "pexpect"
         if [ ! -f "$target/usr/sbin/hpacucli" ]; then

@@ -932,7 +932,7 @@ An example of `/etc/edeploy.conf`
    CONFIGDIR = /var/lib/edeploy/config/
    LOGDIR = /var/lib/edeploy/config/logs
    HWDIR = /var/lib/edeploy/hw/
-   LOCKFILE = /tmp/edeploy.lock
+   LOCKFILE = /var/run/edeploy.lock
    USEPXEMNGR = True
    PXEMNGRURL = http://192.168.122.1:8000/
    METADATAURL = http://192.168.122.1/
