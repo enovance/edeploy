@@ -101,8 +101,8 @@ done
 reboot -f
 EOF
 
-scp "$SCR" "$DST":/tmp/
+scp "$SCR" "$DST":/var/run
 rsync -e ssh -avP --numeric-ids --delete-after --exclude-from="$EXCL" "$src/"  "$DST":/
-ssh "$DST" bash /tmp/$(basename $SCR)
+ssh "$DST" bash /var/run/$(basename $SCR)
 
 # remote-install.sh ends here

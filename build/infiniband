@@ -28,9 +28,11 @@ ORIG=$(cd $(dirname $0); pwd)
 
 # sdpnetstat is not in Ubuntu Trusty yet.
 if [ "$RELEASE" = "trusty" ]; then
-    wget --no-verbose 'http://cs.stanford.edu/pub/mirrors/ubuntu/ubuntu/pool/universe/s/sdpnetstat/sdpnetstat_1.60-1ubuntu2_amd64.deb' -O ${dir}/tmp/sdpnetstat_1.60-1ubuntu2_amd64.deb
-    do_chroot $dir dpkg -i /tmp/sdpnetstat_1.60-1ubuntu2_amd64.deb
-    do_chroot $dir rm /tmp/sdpnetstat_1.60-1ubuntu2_amd64.deb
+    TMP_DIR=$(mktemp -d --suffix=-edeploy --tmpdir=$dir/tmp)
+    wget --no-verbose 'http://cs.stanford.edu/pub/mirrors/ubuntu/ubuntu/pool/universe/s/sdpnetstat/sdpnetstat_1.60-1ubuntu2_amd64.deb' -O ${TMP_DIR}/sdpnetstat_1.60-1ubuntu2_amd64.deb
+    CHROOT_TMP_DIR=$(echo -n $TMP_DIR | sed "s#$dir##")
+    do_chroot $dir dpkg -i  ${CHROOT_TMP_DIR}/sdpnetstat_1.60-1ubuntu2_amd64.deb
+    [ -d ${TMP_DIR} ] && rm -Rf ${TMP_DIR}
 fi
 
 case "$(package_type)" in

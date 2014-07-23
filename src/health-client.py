@@ -164,7 +164,7 @@ def cleanup():
         s.close()
 
 if __name__ == '__main__':
-    HP.start_log('/var/tmp/health-client.log', logging.DEBUG)
+    HP.start_log('/var/log/health-client.log', logging.DEBUG)
     atexit.register(cleanup)
     if len(sys.argv) < 3:
         HP.logger.error("You must provide an hardware file and a host to "

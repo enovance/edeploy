@@ -395,11 +395,12 @@ if /configure; then
                             fi
                         fi
 
-                        cp $d/boot/vmlinuz*$KVER* /tmp/vmlinuz || give_up "Kexec: Unable to copy kernel"
+                        TMP_BUILD=$(mktemp -d --suffix=-edeploy)
+                        cp $d/boot/vmlinuz*$KVER* ${TMP_BUILD}/vmlinuz || give_up "Kexec: Unable to copy kernel"
                         if ls $d/boot/initrd*$KVER* &>/dev/null; then
-                            cp $d/boot/initrd*$KVER* /tmp/initrd.img || give_up "Kexec: Unable to copy initrd"
+                            cp $d/boot/initrd*$KVER* ${TMP_BUILD}/initrd.img || give_up "Kexec: Unable to copy initrd"
                         else
-                            cp $d/boot/initramfs*$KVER* /tmp/initrd.img || give_up "Kexec: Unable to copy initrd"
+                            cp $d/boot/initramfs*$KVER* ${TMP_BUILD}/initrd.img || give_up "Kexec: Unable to copy initrd"
                         fi
 
                         eval $(grep root=UUID= $d/boot/grub/grub.cfg|head -1|tr ' ' '\n'|grep '^root=UUID=')
@@ -407,6 +408,7 @@ if /configure; then
                             log "Kexec: using alternative root detection"
                             root=$(grep 'root=' $d/boot/grub/grub.cfg | grep vmlinuz | head -1 | sed -e 's/.*root=\(.*\)/\1/g' | awk '{print $1}')
                         fi
+                        [ -d ${TMP_BUILD} ] && rm -Rf ${TMP_BUILD}
 
                         umount $d/boot
                         umount $d
@@ -423,7 +425,7 @@ if /configure; then
                         else
                             log "Kexec: Starting with append=root=${root}${BOOT_ARG}"
                             upload_log
-                            kexec -l /tmp/vmlinuz --initrd=/tmp/initrd.img --append="root=${root}${BOOT_ARG}"
+                            kexec -l ${TMP_BUILD}/vmlinuz --initrd=${TMP_BUILD}/initrd.img --append="root=${root}${BOOT_ARG}"
                             kexec -e
                         fi
                     else

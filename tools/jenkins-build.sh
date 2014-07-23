@@ -17,7 +17,7 @@ shift
 ARCH="$1"
 shift
 
-if [ -f /var/tmp/froze-builds ]; then
+if [ -f /var/run/froze-builds ]; then
     exit 0
 fi
 

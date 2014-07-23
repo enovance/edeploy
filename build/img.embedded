@@ -38,7 +38,7 @@ HEALTHDIR=/flash/$vardir//health/
 CONFIGDIR=/flash/$vardir/config
 LOGDIR=/flash/$vardir/config/logs
 HWDIR=/flash/$vardir/hw
-LOCKFILE=/tmp/edeploy.lock
+LOCKFILE=/var/run/edeploy.lock
 USEPXEMNGR=False
 #METADATAURL = http://192.168.122.1/
 EOF

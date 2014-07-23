@@ -30,7 +30,7 @@ VDI_IMAGE="$IMG-$ver.vdi"
 FLASH_SIZE=256 #in Megabytes
 LOOPBACK_BOOT=NONE
 LOOPBACK_DATA=NONE
-BOOT_MOUNT_POINT=/tmp/$2-$3.tmp
+BOOT_MOUNT_POINT=$(mktemp -d)-$2-$3.tmp
 
 . $LOCAL_PATH/img.embedded
 
