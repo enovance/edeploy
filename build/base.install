@@ -199,7 +199,7 @@ install_base_packages() {
             else
                 CODENAME_MAJOR_PACKAGES="man-db grub2"
             fi
-            packages="$cross_distro_packages coreutils dhclient e2fsprogs $CODENAME_MAJOR_PACKAGES grubby hdparm initscripts iproute kernel net-tools passwd perl redhat-lsb-core crontabs openssh-clients"
+            packages="$cross_distro_packages coreutils dhclient e2fsprogs $CODENAME_MAJOR_PACKAGES grubby hdparm initscripts iproute kernel net-tools passwd perl redhat-lsb-core crontabs openssh-clients yum-plugin-priorities"
             ;;
         *)
             echo "unsupported distribution: $dist" 2>&1

@@ -285,3 +285,18 @@ rebuild_db() {
     esac
 
 }
+
+yum_priority() {
+    # Usage: yum_priority <repo-name> <repo-priority>
+    CHROOT=$1
+    REPO_NAME=$2
+    REPO_PRIORITY=$3
+    case "$(package_tool)" in
+        yum)
+           do_chroot $CHROOT yum-config-manager --setopt="$REPO_NAME.priority=$REPO_PRIORITY"
+        ;;
+        *)
+            fatal_error "$(package_tool) isn't supported in rebuild_db()"
+        ;;
+    esac
+}
