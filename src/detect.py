@@ -24,10 +24,10 @@ import diskinfo
 import fcntl
 import hpacucli
 import infiniband as ib
+import json
 import megacli
 from netaddr import IPNetwork
 import os
-import pprint
 import socket
 import struct
 import string
@@ -575,7 +575,7 @@ def _main():
     detect_system(hrdw)
     detect_ipmi(hrdw)
     detect_infiniband(hrdw)
-    pprint.pprint(hrdw)
+    print(json.dumps(hrdw))
 
 if __name__ == "__main__":
     _main()

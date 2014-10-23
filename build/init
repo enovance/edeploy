@@ -161,10 +161,10 @@ if [ -n "$EMBEDDED" ]; then
     dmesg > $EMBEDDED_MOUNT/var/lib/edeploy/config/logs/${vendor}-${product}-${serial}.dmesg
     mkdir -p /etc/
     cp -a $EMBEDDED_MOUNT/etc/* /etc
-    do_python "/upload.py -f /hw.py" > /configure
+    do_python "/upload.py -f /hw.json" > /configure
 else
     step "Configuring system via server ${SERV}"
-    curl -s -S -o/configure -F section=${SECTION} -F file=@/hw.py http://${SERV}:${HTTP_PORT}/${HTTP_PATH}/upload.py &
+    curl -s -S -o/configure -F section=${SECTION} -F file=@/hw.json http://${SERV}:${HTTP_PORT}/${HTTP_PATH}/upload.py &
     # Saving curl's PID
     PID="$!"
 
@@ -256,7 +256,7 @@ if /configure; then
         if [ -d $d/var/log ]; then
             mkdir -p $d/var/log/edeploy
             cp -p /log $d/var/log/edeploy/install.log
-            cp -p /vars /hw.py $d/var/log/edeploy
+            cp -p /vars /hw.json $d/var/log/edeploy
             cp -p /configure $d/var/log/edeploy
             dmesg > $d/var/log/edeploy/dmesg
         fi

@@ -54,7 +54,7 @@ fi
 ################################################################################
 
 step "Saving benchmark results via server ${SERV}"
-curl -s -S $SESSION_CURL -F file=@/health.py http://${SERV}:${HTTP_PORT}/${HTTP_PATH}/upload-health.py &
+curl -s -S $SESSION_CURL -F file=@/health.json http://${SERV}:${HTTP_PORT}/${HTTP_PATH}/upload-health.py &
 #Saving curl's PID
 PID="$!"
 
@@ -198,7 +198,7 @@ show_git_rev
 if [ -n "$RBENCH" ]; then
     step "Contacting Benchmark Server ($RBENCH)"
     while true; do
-        do_python "/health-client.py /hw.py $RBENCH"
+        do_python "/health-client.py /hw.json $RBENCH"
         if [ $? -eq 0 ]; then
             break;
         fi
@@ -206,25 +206,25 @@ if [ -n "$RBENCH" ]; then
     done
 else
     step "Benchmarking system"
-    do_python "/health-check.py /hw.py" > /health.py || give_up "Failed to run health-check"
+    do_python "/health-check.py /hw.json" > /health.json || give_up "Failed to run health-check"
 
     save_results
 
     if [ ! -z "$SMOKE" ]; then
         step "Entering Smoke Test for $SMOKE minutes"
         (while true; do
-            do_python "/health-check.py hw.py storage-burn" &>/dev/null;
+            do_python "/health-check.py hw.json storage-burn" &>/dev/null;
         done
         ) &
         PID_STORAGE="$!"
         PID_CPU="$!"
         (while true; do
-            do_python "/health-check.py hw.py memory-burn" &>/dev/null;
+            do_python "/health-check.py hw.json memory-burn" &>/dev/null;
         done
         ) &
         PID_MEMORY="$!"
         (while true; do
-            do_python "/health-check.py hw.py cpu-burn" &>/dev/null;
+            do_python "/health-check.py hw.json cpu-burn" &>/dev/null;
         done
         ) &
         PID_CPU="$!"
@@ -241,7 +241,7 @@ else
 
         step "Benchmarking after Smoke test"
         sleep 10
-        do_python "/health-check.py hw.py" > /health.py
+        do_python "/health-check.py hw.json" > /health.json
 
         save_results
     fi

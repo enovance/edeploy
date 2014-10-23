@@ -18,6 +18,7 @@
 
 '''Main entry point for hardware and system detection routines in eDeploy.'''
 
+import json
 import platform
 import pprint
 import re
@@ -352,7 +353,7 @@ def _main():
     except Exception:
         True
 
-    hrdw = eval(open(sys.argv[1]).read(-1))
+    hrdw = json.loads(open(sys.argv[1]).read(-1))
 
     sys.stderr.write("Available memory before run = %s\n" % HL.get_available_memory())
 
@@ -384,7 +385,7 @@ def _main():
     sys.stderr.write("Saving results in %s\n" % output_filename)
     with open(output_filename, 'w') as state_file:
         pprint.pprint(hrdw, stream=state_file)
-    pprint.pprint(hrdw)
+    print(json.dumps(hrdw))
 
 if __name__ == "__main__":
     _main()

@@ -37,6 +37,7 @@ import cgitb
 import commands
 from datetime import datetime
 import errno
+import json
 import os
 import pprint
 import re
@@ -443,7 +444,7 @@ def main():
             section, 'HWDIR', cfg_dir)) + '/'
 
     try:
-        hw_items = eval(hw_file.read(-1), {"__builtins__": None}, {})
+        hw_items = json.loads(hw_file.read(-1))
     except Exception, excpt:
         fatal_error("'Invalid hardware file: %s'" % str(excpt))
 

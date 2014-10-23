@@ -57,7 +57,7 @@ do_python() {
 }
 
 run_detect() {
-    do_python /detect.py > /hw.py || give_up "Failed to detect hardware"
+    do_python /detect.py > /hw.json || give_up "Failed to detect hardware"
 }
 
 get_system_info() {
@@ -288,10 +288,10 @@ report_failure() {
     if [ -n "$CAN_REPORT_FAILURE" ]; then
         if [ -n "$EMBEDDED" ]; then
             log "Reporting failure to reincrement profile's quantities"
-            /upload.py -f /hw.py -F $PROFILE
+            /upload.py -f /hw.json -F $PROFILE
         else
             log "Reporting failure to reincrement profile's quantities on server $SERV"
-            curl -s -S -F section=${SECTION} -F failure=$PROFILE -F file=@/hw.py http://${SERV}:${HTTP_PORT}/${HTTP_PATH}/upload.py
+            curl -s -S -F section=${SECTION} -F failure=$PROFILE -F file=@/hw.json http://${SERV}:${HTTP_PORT}/${HTTP_PATH}/upload.py
         fi
     fi
 }

@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 #
-# Copyright (C) 2013 eNovance SAS <licensing@enovance.com>
+# Copyright (C) 2013-2014 eNovance SAS <licensing@enovance.com>
 #
 # Author: Frederic Lepied <frederic.lepied@enovance.com>
 #
@@ -16,10 +16,11 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
+import json
 import sys
 import matcher
 
-if (len(sys.argv) != 3):
+if len(sys.argv) != 3:
     print "try_match help"
     print "=============="
     print
@@ -34,7 +35,7 @@ if (len(sys.argv) != 3):
     print "try_match <hw_file> <spec_file>"
     sys.exit(1)
 
-hw_items = eval(open(sys.argv[1], 'r').read(-1))
+hw_items = json.loads(open(sys.argv[1], 'r').read(-1))
 specs = eval(open(sys.argv[2], 'r').read(-1))
 
 var = {}
@@ -44,4 +45,4 @@ if matcher.match_all(hw_items, specs, var, var2, debug=True):
     print var
 else:
     print False
-
+    sys.exit(1)

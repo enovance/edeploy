@@ -16,16 +16,18 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
+import atexit
+import json
+import logging
+import sys
+
 from socket import socket, AF_INET, SOCK_STREAM
 from health_messages import Health_Message as HM
 from health_bench import Health_CPU as HCPU
 from health_bench import Health_MEMORY as HMEMORY
 from health_bench import Health_NETWORK as HNETWORK
 from health_bench import Health_STORAGE as HSTORAGE
-import atexit
 import health_protocol as HP
-import logging
-import sys
 
 s = socket(AF_INET, SOCK_STREAM)
 connected = False
@@ -141,7 +143,7 @@ def connect_to_server(hostname):
     connected = True
 
     msg = HM(HM.CONNECT)
-    msg.hw = eval(open(sys.argv[1]).read(-1))
+    msg.hw = json.loads(open(sys.argv[1]).read(-1))
 
     HP.send_hm_message(s, msg, True)
     while True:
@@ -164,7 +166,7 @@ def connect_to_server(hostname):
             return True
             break
 
-        msg.hw = eval(open(sys.argv[1]).read(-1))
+        msg.hw = json.loads(open(sys.argv[1]).read(-1))
 
         handlers = {HM.NONE: none,
                     HM.CONNECT: connect,
