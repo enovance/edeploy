@@ -43,6 +43,13 @@ check_usage() {
     fi
 }
 
+remote_fetch() {
+    local remote_location=$1
+    local local_location=$2
+    # We retry 12 times with 10 seconds delay between retries
+    curl --silent --show-error --retry 12 --retry-delay 10 -L -o ${dir}/$local_location $remote_location
+}
+
 install_mellanox() {
     RELEASE=$1
     CHROOT=$2
