@@ -316,6 +316,11 @@ cleanup() {
         # Let's extract the target name from this variable
         CLEAN_CURRENT_TARGET=$(basename $CURRENT_TARGET | cut -d "." -f 1)
 
+        # Verify the IDS are correct
+        if [ -f "${dir}/usr/sbin/verifyids.py" ] && ! do_chroot ${dir} /usr/sbin/verifyids.py; then
+            exit 1
+        fi
+
         # Did we completed the build (aka no more dependencies) ?
         # It's useless creating virtualized images on dependencies, it takes space & time for nothing.
         if [ "$MAKEFILE_TARGET" = "$CLEAN_CURRENT_TARGET" ]; then

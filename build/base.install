@@ -175,6 +175,8 @@ bootstrap() {
     cp -p ${ORIG}/mngids.py ${target}/usr/sbin/
     fake_shadow_utils
     cp ${dir}/../ids.tables ${dir}/root/
+    # Verify the ids are matching
+    cp -p ${ORIG}/verifyids.py ${target}/usr/sbin/
 
     clean_mount_points
 }
