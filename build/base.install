@@ -203,7 +203,6 @@ install_base_packages() {
     local cross_distro_packages="acpid bash curl dmidecode kbd lvm2 openssh-server parted pciutils rsync rsyslog sudo wget ntpdate logrotate ethtool hdparm iptables tcpdump ipmitool lldpad"
     local deb_packages="grub-pc ifenslave ifupdown isc-dhcp-client kexec-tools locales lsb-release lshw man netbase netcat-openbsd net-tools vim cron dnsutils kdump-tools"
     local repository=$(add_main_repository $dist)
-    add_megacli_repository $dist $target
     case $dist in
         $supported_ubuntu_dists)
             packages="$cross_distro_packages grub2 iputils-ping linux-firmware linux-firmware-nonfree linux-headers-generic-lts-trusty linux-image-generic-lts-trusty $deb_packages linux-crashdump"
@@ -263,39 +262,19 @@ install_base_packages() {
     fi
 }
 
-add_megacli_repository() {
-    local dist=$1
-    local target=$2
-    case "$dist" in
-        $supported_debian_dists)
-            wget -O - http://hwraid.le-vert.net/debian/hwraid.le-vert.net.gpg.key | do_chroot $target apt-key add -
-            echo "deb http://hwraid.le-vert.net/debian ${dist} main" > $target/etc/apt/sources.list.d/hwraid.list
-            ;;
-        # they don't support Trusty yet
-        trusty)
-            wget -O - http://hwraid.le-vert.net/ubuntu/hwraid.le-vert.net.gpg.key | do_chroot $target apt-key add -
-            echo "deb http://hwraid.le-vert.net/ubuntu precise main" > $target/etc/apt/sources.list.d/hwraid.list
-            ;;
-        $supported_ubuntu_dists)
-            wget -O - http://hwraid.le-vert.net/ubuntu/hwraid.le-vert.net.gpg.key | do_chroot $target apt-key add -
-            echo "deb http://hwraid.le-vert.net/ubuntu ${dist} main" > $target/etc/apt/sources.list.d/hwraid.list
-            ;;
-        $supported_centos_dists|$supported_redhat_dists)
-            check_binary unzip
-            ;;
-        *)
-            fatal_error "Unsupported distro for hwraid"
-            exit 1
-            ;;
-    esac
-}
-
 install_megacli() {
     case "$dist" in
         $supported_debian_dists|$supported_ubuntu_dists)
-            install_packages $target megacli
+            local package_name="megacli_${RELEASE}_8.07.14-1_amd64.deb"
+            if [ ! -r $target/../../$package_name ]; then
+                wget --no-verbose https://github.com/enovance/edeploy-roles/blob/master/files/$package_name?raw=true -O $target/../../$package_name
+            fi
+            cp $target/../../$package_name $target/tmp/
+            do_chroot $target dpkg -i /tmp/$package_name
+            rm -f $target/tmp/$package_name
             ;;
         $supported_centos_dists|$supported_redhat_dists)
+            check_binary unzip
             local MEGACLIVER=8.07.10
             local MEGACLIZIP="$ORIG/${MEGACLIVER}_MegaCLI_Linux.zip"
             if [ ! -f "$MEGACLIZIP" ]; then
