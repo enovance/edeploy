@@ -80,6 +80,12 @@ function upgrade() {
 
     if [ -x pre ]; then
         ./pre
+        RET=$?
+    fi
+
+    if [ "$RET" != "0" ]; then
+        echo "Upgrade process failed in pre script."
+        exit 1
     fi
 
     rsync -av --numeric-ids --delete-after --exclude-from=exclude rsync://${RSERV}:${RSERV_PORT}/${RPATH}/${TARGET}/${ROLE}/ / > ${EDEPLOY_DIR}/rsync_${VERS}_${TARGET}.out
@@ -102,6 +108,11 @@ function upgrade() {
         sync
         sleep 2
         reboot
+    fi
+
+    if [ "$RET" != "0" ]; then
+        echo "Upgrade process failed in post script."
+        exit 1
     fi
 }
 
