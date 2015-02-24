@@ -340,7 +340,7 @@ def generate_filename_and_macs(items):
 
 
 def check_mce_status(hw_):
-    if os.stat('/mcelog').st_size > 0:
+    if os.path.isfile('/mcelog') and os.stat('/mcelog').st_size > 0:
         hw_.append(('system', 'platform', 'mce', 'True'))
     else:
         hw_.append(('system', 'platform', 'mce', 'False'))
