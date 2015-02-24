@@ -172,7 +172,7 @@ function deactivate-pkgmngr() {
 #!/bin/sh
 
 echo "\$(basename \$0) is deactivated. Use \"edeploy activate-pkgmngr\" to bring it back."
-exit 0
+exit 1
 EOF
     chmod a+x /usr/bin/pkgmngr.edeploy
     for pkgmngr in apt-get yum; do
