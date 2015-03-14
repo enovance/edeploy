@@ -265,6 +265,10 @@ add_megacli_repository() {
     local dist=$1
     local target=$2
     case "$dist" in
+        jessie)
+            wget -O - http://hwraid.le-vert.net/debian/hwraid.le-vert.net.gpg.key | do_chroot $target apt-key add -
+            echo "deb http://hwraid.le-vert.net/debian sid main" > $target/etc/apt/sources.list.d/hwraid.list
+            ;;
         $supported_debian_dists)
             wget -O - http://hwraid.le-vert.net/debian/hwraid.le-vert.net.gpg.key | do_chroot $target apt-key add -
             echo "deb http://hwraid.le-vert.net/debian ${dist} main" > $target/etc/apt/sources.list.d/hwraid.list
