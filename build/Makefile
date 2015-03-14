@@ -21,10 +21,10 @@
 MAKEFILE_DIR=$(shell pwd)
 SDIR=/root/edeploy
 TOP=/var/lib/debootstrap
-DVER=D7
-VERSION:=1.9.0
+DVER=D8
+VERSION:=1.0.0
 VERS=$(DVER)-$(VERSION)
-DIST=wheezy
+DIST=jessie
 
 IMG=initrd.pxe
 HEALTH_IMG=health.pxe
