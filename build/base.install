@@ -194,8 +194,10 @@ install_lldpad_on_jessie() {
     target=$1
     if [ "$dist" = 'jessie' ]; then
         wget --no-verbose http://ftp.debian.org/debian/pool/main/l/lldpad/lldpad_0.9.44-1_amd64.deb -O $target/tmp/lldpad.deb
+        wget --no-verbose http://ftp.debian.org/debian/pool/main/libn/libnl/libnl1_1.1-7_amd64.deb -O $target/tmp/libnl.deb
+      do_chroot ${target} dpkg -i /tmp/libnl.deb
       do_chroot ${target} dpkg -i /tmp/lldpad.deb
-      do_chroot ${target} rm /tmp/lldpad.deb
+      do_chroot ${target} rm /tmp/lldpad.deb /tmp/libnl.deb
     fi
 }
 install_base_packages() {
@@ -207,7 +209,7 @@ install_base_packages() {
     cp -f /etc/resolv.conf "$target/etc/"
     local packages=""
     local cross_distro_packages="acpid bash curl dmidecode kbd lvm2 openssh-server parted pciutils rsync rsyslog sudo wget ntpdate logrotate ethtool hdparm iptables tcpdump ipmitool"
-    local deb_packages="grub-pc ifenslave ifupdown isc-dhcp-client kexec-tools locales lsb-release lshw man netbase netcat-openbsd net-tools vim cron dnsutils kdump-tools"
+    local deb_packages="grub-pc ifenslave ifupdown isc-dhcp-client kexec-tools locales lsb-release lshw man netbase netcat-openbsd net-tools vim cron dnsutils kdump-tools libconfig9"
     local repository=$(add_main_repository $dist)
     add_megacli_repository $dist $target
     case $dist in
