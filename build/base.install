@@ -195,9 +195,9 @@ install_lldpad_on_jessie() {
     if [ "$dist" = 'jessie' ]; then
         wget --no-verbose http://ftp.debian.org/debian/pool/main/l/lldpad/lldpad_0.9.44-1_amd64.deb -O $target/tmp/lldpad.deb
         wget --no-verbose http://ftp.debian.org/debian/pool/main/libn/libnl/libnl1_1.1-7_amd64.deb -O $target/tmp/libnl.deb
-      do_chroot ${target} dpkg -i /tmp/libnl.deb
-      do_chroot ${target} dpkg -i /tmp/lldpad.deb
-      do_chroot ${target} rm /tmp/lldpad.deb /tmp/libnl.deb
+        do_chroot ${target} dpkg -i /tmp/libnl.deb
+        do_chroot ${target} dpkg -i /tmp/lldpad.deb
+        do_chroot ${target} rm /tmp/lldpad.deb /tmp/libnl.deb
     fi
 }
 install_base_packages() {
@@ -222,7 +222,7 @@ install_base_packages() {
         $supported_debian_dists)
             # lldpad is ftbfs so it's only for Wheezy and Sid
             if [ "$dist" = 'wheezy' ]; then
-              wheezy_only="lldpad"
+                wheezy_only="lldpad"
             fi
             packages="$cross_distro_packages acpi-support-base firmware-linux firmware-netxen firmware-qlogic firmware-realtek firmware-bnx2 firmware-bnx2x htop inetutils-ping libui-dialog-perl linux-image-amd64 $deb_packages $wheezy_only"
             echo "deb $repository $dist non-free" > ${target}/etc/apt/sources.list.d/nonfree.list
