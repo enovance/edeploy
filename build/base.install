@@ -190,6 +190,16 @@ bootstrap() {
     clean_mount_points
 }
 
+install_lldpad_on_jessie() {
+    target=$1
+    if [ "$dist" = 'jessie' ]; then
+        wget --no-verbose http://ftp.debian.org/debian/pool/main/l/lldpad/lldpad_0.9.44-1_amd64.deb -O $target/tmp/lldpad.deb
+        wget --no-verbose http://ftp.debian.org/debian/pool/main/libn/libnl/libnl1_1.1-7_amd64.deb -O $target/tmp/libnl.deb
+        do_chroot ${target} dpkg -i /tmp/libnl.deb
+        do_chroot ${target} dpkg -i /tmp/lldpad.deb
+        do_chroot ${target} rm /tmp/lldpad.deb /tmp/libnl.deb
+    fi
+}
 install_base_packages() {
     target=$1
     # Resolv.conf got setup during the initial deboostrap
@@ -198,19 +208,23 @@ install_base_packages() {
     # So let's copy the current one to insure the setup is good
     cp -f /etc/resolv.conf "$target/etc/"
     local packages=""
-    local cross_distro_packages="acpid bash curl dmidecode kbd lvm2 openssh-server parted pciutils rsync rsyslog sudo wget ntpdate logrotate ethtool hdparm iptables tcpdump ipmitool lldpad"
-    local deb_packages="grub-pc ifenslave ifupdown isc-dhcp-client kexec-tools locales lsb-release lshw man netbase netcat-openbsd net-tools vim cron dnsutils kdump-tools"
+    local cross_distro_packages="acpid bash curl dmidecode kbd lvm2 openssh-server parted pciutils rsync rsyslog sudo wget ntpdate logrotate ethtool hdparm iptables tcpdump ipmitool"
+    local deb_packages="grub-pc ifenslave ifupdown isc-dhcp-client kexec-tools locales lsb-release lshw man netbase netcat-openbsd net-tools vim cron dnsutils kdump-tools libconfig9"
     local repository=$(add_main_repository $dist)
     add_megacli_repository $dist $target
     case $dist in
         $supported_ubuntu_dists)
-            packages="$cross_distro_packages grub2 iputils-ping linux-firmware linux-firmware-nonfree linux-headers-generic-lts-trusty linux-image-generic-lts-trusty $deb_packages linux-crashdump"
+            packages="$cross_distro_packages grub2 iputils-ping linux-firmware linux-firmware-nonfree linux-headers-generic-lts-trusty linux-image-generic-lts-trusty $deb_packages linux-crashdump lldpad "
             echo "deb $repository $dist main universe multiverse" > ${target}/etc/apt/sources.list
             echo "deb $repository $dist-updates main universe multiverse" >> ${target}/etc/apt/sources.list
             echo "deb http://security.ubuntu.com/ubuntu $dist-security main universe multiverse" >> ${target}/etc/apt/sources.list
             ;;
         $supported_debian_dists)
-            packages="$cross_distro_packages acpi-support-base firmware-linux firmware-netxen firmware-qlogic firmware-realtek firmware-bnx2 firmware-bnx2x htop inetutils-ping libui-dialog-perl linux-image-amd64 $deb_packages"
+            # lldpad is ftbfs so it's only for Wheezy and Sid
+            if [ "$dist" = 'wheezy' ]; then
+                wheezy_only="lldpad"
+            fi
+            packages="$cross_distro_packages acpi-support-base firmware-linux firmware-netxen firmware-qlogic firmware-realtek firmware-bnx2 firmware-bnx2x htop inetutils-ping libui-dialog-perl linux-image-amd64 $deb_packages $wheezy_only"
             echo "deb $repository $dist non-free" > ${target}/etc/apt/sources.list.d/nonfree.list
             echo "deb http://security.debian.org/ $dist/updates main" >  ${target}/etc/apt/sources.list.d/updates.list
             echo "deb $repository $dist-updates main" >> ${target}/etc/apt/sources.list.d/updates.list
@@ -221,7 +235,7 @@ install_base_packages() {
             else
                 CODENAME_MAJOR_PACKAGES="man-db grub2"
             fi
-            packages="$cross_distro_packages coreutils dhclient e2fsprogs $CODENAME_MAJOR_PACKAGES grubby hdparm initscripts iproute kernel net-tools passwd perl redhat-lsb-core crontabs openssh-clients bind-utils kexec-tools selinux-policy-targeted setroubleshoot-server"
+            packages="$cross_distro_packages coreutils dhclient e2fsprogs $CODENAME_MAJOR_PACKAGES grubby hdparm initscripts iproute kernel net-tools passwd perl redhat-lsb-core crontabs openssh-clients bind-utils kexec-tools selinux-policy-targeted setroubleshoot-server lldpad"
             ;;
         *)
             echo "unsupported distribution: $dist" 2>&1
@@ -265,6 +279,10 @@ add_megacli_repository() {
     local dist=$1
     local target=$2
     case "$dist" in
+        jessie)
+            wget -O - http://hwraid.le-vert.net/debian/hwraid.le-vert.net.gpg.key | do_chroot $target apt-key add -
+            echo "deb http://hwraid.le-vert.net/debian sid main" > $target/etc/apt/sources.list.d/hwraid.list
+            ;;
         $supported_debian_dists)
             wget -O - http://hwraid.le-vert.net/debian/hwraid.le-vert.net.gpg.key | do_chroot $target apt-key add -
             echo "deb http://hwraid.le-vert.net/debian ${dist} main" > $target/etc/apt/sources.list.d/hwraid.list
@@ -461,6 +479,7 @@ fake_setup
 bootstrap $dir
 common_setup
 install_base_packages $dir
+install_lldpad_on_jessie $dir
 install_hp_raid_cli_tool $dir
 install_megacli $dist $dir
 set_firstboot $dir

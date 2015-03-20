@@ -115,9 +115,22 @@ install_edeploy() {
 install_pxe() {
     case "$OS" in
         "Debian"|"Ubuntu")
-            install_packages_disabled $dir dnsmasq syslinux-common
-            cp -a $dir/usr/lib/syslinux/*pxelinux.0 $dir/var/lib/tftpboot/
-            cp -a $dir/usr/lib/syslinux/chain.c32 $dir/var/lib/tftpboot/
+            case "$dist" in
+                jessie)
+                    install_packages_disabled $dir dnsmasq syslinux-common pxelinux
+                    cp -a $dir/usr/lib/PXELINUX/pxelinux.0 $dir/var/lib/tftpboot/
+                    # TODO: ensure we use the right file
+                    # /usr/lib/syslinux/modules/efi64/chain.c32
+                    # /usr/lib/syslinux/modules/efi32/chain.c32
+                    # /usr/lib/syslinux/modules/bios/chain.c32
+                    cp -a $dir/usr/lib/syslinux/modules/bios/chain.c32 $dir/var/lib/tftpboot/
+                    ;;
+                wheezy)
+                    install_packages_disabled $dir dnsmasq syslinux-common
+                    cp -a $dir/usr/lib/syslinux/*pxelinux.0 $dir/var/lib/tftpboot/
+                    cp -a $dir/usr/lib/syslinux/chain.c32 $dir/var/lib/tftpboot/
+                    ;;
+            esac
             ;;
         "CentOS"|"RedHatEnterpriseServer")
             install_packages_disabled $dir dnsmasq syslinux

@@ -33,6 +33,14 @@ if [ "$RELEASE" = "trusty" ]; then
     do_chroot $dir rm /tmp/sdpnetstat_1.60-1ubuntu2_amd64.deb
 fi
 
+# sdpnetstat and rds-tools are not in Debian Jessie yet.
+if [ "$RELEASE" = "jessie" ]; then
+    wget --no-verbose 'http://ftp.debian.org/debian/pool/main/s/sdpnetstat/sdpnetstat_1.60-1_amd64.deb' -O ${dir}/tmp/sdpnetstat.deb
+    wget --no-verbose 'http://ftp.debian.org/debian/pool/main/r/rds-tools/rds-tools_1.4.1-OFED-1.4.2-1_amd64.deb' -O ${dir}/tmp/rds-tools.deb
+    do_chroot $dir dpkg -i /tmp/sdpnetstat.deb /tmp/rds-tools.deb
+    do_chroot $dir rm /tmp/sdpnetstat.deb /tmp/rds-tools.deb
+fi
+
 case "$(package_type)" in
     "deb")
         PACKAGES="infiniband-diags ibutils ibverbs-utils qlvnictools srptools sdpnetstat rds-tools rdmacm-utils perftest libmthca1 libmlx4-1 libipathverbs1"
