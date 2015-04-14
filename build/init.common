@@ -567,6 +567,11 @@ while true; do
                 ip link add link ${iface} name ${vlan_iface} type vlan id ${vlan}
                 iface=${vlan_iface}
             fi
+
+            # Prevent arp-flux: Do not respond to ARP requests that
+            # are not for this specific interface
+            sysctl net.ipv4.conf.$iface.arp_filter=1
+
             case "$config" in
                 "dhcp")
                     DHCP_IFACES_COUNT=$(($DHCP_IFACES_COUNT + 1))
