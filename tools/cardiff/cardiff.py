@@ -589,8 +589,8 @@ def main(argv):
                     compute_metrics(current_dir, rampup_value, metrics)
 
                     bench_values.append(
-                        analyze_data((global_params, rampup_dir + '/' +
-                                      str(rampup_value) + '/' + job + '/'),
+                        analyze_data(global_params, rampup_dir + '/' +
+                                     str(rampup_value) + '/' + job + '/',
                                      ignore_list, detail,
                                      rampup_value, max(rampup_values),
                                      current_dir))
