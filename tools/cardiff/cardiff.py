@@ -416,8 +416,8 @@ def plot_results(current_dir, rampup_values, job, metrics, bench_values,
                   extract_hw_info(bench_values[0][0], 'system',
                                   'kernel', 'arch')[0])
 
-        subtitle = "\\nBenchmark setup : %s, runtime=%d seconds, %d "
-        "hypervisors with %s scheduling\\n%s" % \
+        subtitle = "\\nBenchmark setup : %s, runtime=%d seconds, %d " \
+                   "hypervisors with %s scheduling\\n%s" % \
             (context, metrics["bench"]["runtime"],
              len(metrics["affinity"]), metrics["bench"]["affinity"],
              system)
@@ -537,7 +537,7 @@ def main(argv):
                 sys.exit(2)
 
             temp_rampup_values = [int(name) for name in os.listdir(rampup_dir)
-                                  if os.path.isdir(rampup_dir+name)]
+                                  if os.path.isdir(rampup_dir+'/'+name)]
             if not rampup_values:
                 rampup_values = temp_rampup_values
                 if len(rampup_values) < 2:
@@ -589,14 +589,14 @@ def main(argv):
                     compute_metrics(current_dir, rampup_value, metrics)
 
                     bench_values.append(
-                        analyze_data((global_params, rampup_dir + '/' +
-                                      str(rampup_value) + '/' + job + '/'),
+                        analyze_data(global_params, rampup_dir + '/' +
+                                     str(rampup_value) + '/' + job + '/',
                                      ignore_list, detail,
                                      rampup_value, max(rampup_values),
                                      current_dir))
 
-            plot_results(current_dir, rampup_values, metrics,
-                         bench_values, titles, rampup_dirs, [])
+            plot_results(current_dir, rampup_values, job, metrics,
+                         bench_values, titles, rampup_dirs)
 
         if len(titles.keys()) > 1:
             final_directory_name = ""
