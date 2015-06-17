@@ -24,6 +24,7 @@ import compare_sets
 import shutil
 import numpy
 import glob
+import subprocess
 
 
 def print_help():
@@ -232,53 +233,65 @@ def compute_metrics(current_dir, rampup_value, metrics):
 def do_plot(current_dir, gpm_dir, main_title, subtitle, name, unit, titles,
             titles_order, expected_value=""):
     filename = current_dir+"/"+name+".gnuplot"
+    p = subprocess.Popen(["gnuplot", "-V"], stdout=subprocess.PIPE)
+    out, err = p.communicate()
+    version = int(out.split()[1].split('.')[0])
+    if version >= 5:
+        gnuplot_arg = lambda x: "ARG" + str(x + 1)
+    else:
+        gnuplot_arg = lambda x: "'$" + str(x) + "'"
     with open(filename, "a") as f:
         shutil.copyfile("%s/graph2D.gpm" % gpm_dir,
                         "%s/graph2D.gpm" % current_dir)
         with open("%s/graph2D.gpm" % current_dir, "a") as myfile:
+            myfile.write("set title %s.\"\\n\".%s\n" %
+                         (gnuplot_arg(0), gnuplot_arg(1)))
+            myfile.write("set output %s.'-raw.png'\n" % (gnuplot_arg(4),))
+            myfile.write("set ylabel %s\n" % (gnuplot_arg(5),))
             column = 2
             for title in titles_order:
                 if column == 2:
                     myfile.write(
-                        "plot '$2' using %d:xtic(1) "
+                        "plot %s using %d:xtic(1) "
                         "with linespoints title '%s'" %
-                        (column, titles[title]))
+                        (gnuplot_arg(2), column, titles[title]))
                 else:
-                    myfile.write(",\\\n'$2' using %d:xtic(1) "
+                    myfile.write(",\\\n%s using %d:xtic(1) "
                                  "with linespoints title '%s'" %
-                                 (column, titles[title]))
+                                 (gnuplot_arg(2), column, titles[title]))
                 column = column + 1
             if expected_value:
                 myfile.write(",\\\n %.2f w l ls 1 ti "
                              "'Expected value (%.2f)'" %
                              (expected_value, expected_value))
-            myfile.write("\nset output '$4-smooth.png'\n")
+            myfile.write("\nset output %s.'-smooth.png'\n" %
+                         (gnuplot_arg(4),))
             column = 2
             for title in titles_order:
                 if column == 2:
-                    myfile.write("plot '$2' using %d:xtic(1) "
+                    myfile.write("plot %s using %d:xtic(1) "
                                  "smooth csplines title '%s'" %
-                                 (column, titles[title]))
+                                 (gnuplot_arg(2), column, titles[title]))
                 else:
-                    myfile.write(",\\\n'$2' using %d:xtic(1) "
+                    myfile.write(",\\\n%s using %d:xtic(1) "
                                  "smooth csplines title '%s'" %
-                                 (column, titles[title]))
+                                 (gnuplot_arg(2), column, titles[title]))
                 column = column + 1
             if expected_value:
                 myfile.write(",\\\n %.2f w l ls 1 ti "
                              "'Expected value (%.2f)'" %
                              (expected_value, expected_value))
             column = 2
-            myfile.write("\nset output '$4-trend.png'\n")
+            myfile.write("\nset output %s.'-trend.png'\n" % (gnuplot_arg(4),))
             for title in titles_order:
                 if column == 2:
-                    myfile.write("plot '$2' using %d:xtic(1) "
+                    myfile.write("plot %s using %d:xtic(1) "
                                  "smooth bezier title '%s'" %
-                                 (column, titles[title]))
+                                 (gnuplot_arg(2), column, titles[title]))
                 else:
-                    myfile.write(",\\\n'$2' using %d:xtic(1) "
+                    myfile.write(",\\\n%s using %d:xtic(1) "
                                  "smooth bezier title '%s'" %
-                                 (column, titles[title]))
+                                 (gnuplot_arg(2), column, titles[title]))
                 column = column + 1
             if expected_value:
                 myfile.write(",\\\n %.2f w l ls 1 ti "
