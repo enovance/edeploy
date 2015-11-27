@@ -127,9 +127,11 @@ bootstrap() {
         case "$dist" in
             $supported_debian_dists)
                 scripts="sid"
+                components="main,contrib,non-free"
                 ;;
             $supported_ubuntu_dists)
                 scripts="gutsy"
+                components="main,universe,multiverse"
                 ;;
         esac
         if [ ! -e  /usr/share/debootstrap/scripts/${dist} ]; then
@@ -137,7 +139,7 @@ bootstrap() {
             ln -s $scripts $dist
             cd -
         fi
-        debootstrap --arch ${ARCH:=amd64} --variant=minbase $dist "$target" $repository
+        debootstrap --arch ${ARCH:=amd64} --components $components --variant=minbase $dist "$target" $repository
         # workaround no signature downloaded
         rm -f "$target"/var/lib/apt/lists/*[es]
         if [  -n "${HTTP_PROXY}" ]; then
@@ -209,15 +211,13 @@ install_base_packages() {
     case $dist in
         $supported_ubuntu_dists)
             packages="$cross_distro_packages grub2 iputils-ping linux-firmware linux-firmware-nonfree linux-headers-generic-lts-trusty linux-image-generic-lts-trusty $deb_packages linux-crashdump"
-            echo "deb $repository $dist main universe multiverse" > ${target}/etc/apt/sources.list
             echo "deb $repository $dist-updates main universe multiverse" >> ${target}/etc/apt/sources.list
             echo "deb http://security.ubuntu.com/ubuntu $dist-security main universe multiverse" >> ${target}/etc/apt/sources.list
             ;;
         $supported_debian_dists)
             packages="$cross_distro_packages acpi-support-base firmware-linux firmware-netxen firmware-qlogic firmware-realtek firmware-bnx2 firmware-bnx2x htop inetutils-ping libui-dialog-perl linux-image-amd64 $deb_packages"
-            echo "deb $repository $dist non-free" > ${target}/etc/apt/sources.list.d/nonfree.list
-            echo "deb http://security.debian.org/ $dist/updates main" >  ${target}/etc/apt/sources.list.d/updates.list
-            echo "deb $repository $dist-updates main" >> ${target}/etc/apt/sources.list.d/updates.list
+            echo "deb $repository $dist-updates main contrib non-free" >> ${target}/etc/apt/sources.list
+            echo "deb http://security.debian.org/ $dist/updates main contrib non-free" >>  ${target}/etc/apt/sources.list
             ;;
         $supported_centos_dists|$supported_redhat_dists)
             if [ "$CODENAME_MAJOR" = '6' ]; then
